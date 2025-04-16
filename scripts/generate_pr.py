@@ -16,6 +16,9 @@ def checkout_branch(branch_name: str, create: bool = False):
 
 def create_pr_file(id: str):
 	pr_file_path = f"dummy_files/pr-{id}.txt"
+	if not os.path.exists(os.path.dirname(pr_file_path)):
+		os.makedirs(os.path.dirname(pr_file_path))
+		
 	with open(pr_file_path, "w") as pr_file:
 		pr_file.write("This is a test PR file.\n")
 		pr_file.write("It contains some test content.\n")
