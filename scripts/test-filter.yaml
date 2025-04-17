@@ -1,0 +1,9 @@
+name: test-filter
+files:
+  - ^abc/
+  - ^def/
+  - ^dummy/
+skip-if:
+  all-files-match-any:
+    - ^ignore/abc
+    - ^ignore/def
