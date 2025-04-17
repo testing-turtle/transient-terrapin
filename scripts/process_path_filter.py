@@ -191,6 +191,7 @@ def set_github_output(name: str, value: str):
 
     with open(os.getenv("GITHUB_OUTPUT"), "a") as f:
         f.write(f"{name}={value}\n")
+    print(f"OUTPUT:{name}={value}")
 
 
 if __name__ == "__main__":
@@ -210,6 +211,4 @@ if __name__ == "__main__":
 
     for filter in filters:
         filter_matches = filter.matches(file_list)
-
-        print(f"Filter `{filter.name}` matches:{filter_matches}")
         set_github_output(filter.name, str(filter_matches).lower())
