@@ -93,9 +93,8 @@ def load_git_changes(compare_to: str = "main") -> list[str]:
         print(f"Got {len(files)} changed files from git")
         return files
     except subprocess.CalledProcessError as e:
-
         print(
-            f"Error getting git changes: {e}\n{e.stdout}\n{e.stderr}", file=sys.stderr
+            f"Error getting git changes: {e}\n{e.stdout}\n{e.stderr}", file=sys.stderr, flush=True
         )
         sys.exit(1)
 
