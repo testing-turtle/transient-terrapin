@@ -78,7 +78,7 @@ class Filter:
 
 
 def load_git_changes(compare_to: str = "main") -> list[str]:
-    print("Attempting to load changes via git...")
+    print("Attempting to load changes via git...", flush=True)
     # TODO - update to find common ancestor from current commit to compare_to
     # TODO - explore using GH API to get changed files - would remove the need to checkout code
     #        https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#list-pull-requests-files
@@ -90,7 +90,7 @@ def load_git_changes(compare_to: str = "main") -> list[str]:
             text=True,
         )
         files = result.stdout.splitlines()
-        print(f"Got {len(files)} changed files from git")
+        print(f"Got {len(files)} changed files from git", flush=True)
         return files
     except subprocess.CalledProcessError as e:
         print(
@@ -100,26 +100,26 @@ def load_git_changes(compare_to: str = "main") -> list[str]:
 
 
 def load_pr_changes() -> list[str]:
-    print("Attempting to loading PR changes...")
+    print("Attempting to loading PR changes...", flush=True)
     # GH env vars: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/store-information-in-variables#default-environment-variables
     github_token = os.getenv("GITHUB_TOKEN")
     if github_token is None:
-        print("GITHUB_TOKEN environment variable is not set.")
+        print("GITHUB_TOKEN environment variable is not set.", flush=True)
         return None
 
     github_ref = os.getenv("GITHUB_REF")
     if github_ref is None:
-        print("GITHUB_REF environment variable is not set.")
+        print("GITHUB_REF environment variable is not set.", flush=True)
         return None
 
     github_repository = os.getenv("GITHUB_REPOSITORY")
     if github_repository is None:
-        print("GITHUB_REPOSITORY environment variable is not set.")
+        print("GITHUB_REPOSITORY environment variable is not set.", flush=True)
         return None
 
     # parse 'refs/pull/123/merge' to get the PR number
     if not github_ref.startswith("refs/pull/"):
-        print(f"Not a PR ref {github_ref}")
+        print(f"Not a PR ref {github_ref}", flush=True)
         return None
     pr_number = github_ref.split("/")[2]
 
@@ -136,10 +136,10 @@ def load_pr_changes() -> list[str]:
         resp.raise_for_status()
         files = resp.json()
         file_list = [file["filename"] for file in files]
-        print(f"Got {len(file_list)} changed files for PR {pr_number}")
+        print(f"Got {len(file_list)} changed files for PR {pr_number}", flush=True)
         return file_list
     except requests.exceptions.RequestException as e:
-        print(f"Error getting PR changes: {e}", file=sys.stderr)
+        print(f"Error getting PR changes: {e}", file=sys.stderr, flush=True)
         sys.exit(1)
 
 
@@ -147,25 +147,25 @@ def load_filter_file(filter_file: str) -> list[Filter]:
     with open(filter_file, "r") as f:
         filter_data = yaml.safe_load(f)
     if filter_data is None:
-        print(f"Filter file {filter_file} is empty.")
+        print(f"Filter file {filter_file} is empty.", flush=True)
         sys.exit(1)
     if not isinstance(filter_data, list):
-        print(f"Filter file {filter_file} is not a list.")
+        print(f"Filter file {filter_file} is not a list.", flush=True)
         sys.exit(1)
 
     filters = []
     for filter_item in filter_data:
         if "name" not in filter_item:
-            print(f"Filter file {filter_file} does not contain a name.")
+            print(f"Filter file {filter_file} does not contain a name.", flush=True)
             sys.exit(1)
         if "files" not in filter_item:
-            print(f"Filter file {filter_file} does not contain a files list.")
+            print(f"Filter file {filter_file} does not contain a files list.", flush=True)
             sys.exit(1)
         if not isinstance(filter_item["files"], list):
-            print(f"Filter file {filter_file} files list is not a list.")
+            print(f"Filter file {filter_file} files list is not a list.", flush=True)
             sys.exit(1)
         if len(filter_item["files"]) == 0:
-            print(f"Filter file {filter_file} files list is empty.")
+            print(f"Filter file {filter_file} files list is empty.", flush=True)
             sys.exit(1)
 
         skip_if = None
@@ -185,28 +185,28 @@ def load_filter_file(filter_file: str) -> list[Filter]:
 
 def set_github_output(name: str, value: str):
     if os.getenv("GITHUB_OUTPUT") is None:
-        print("GITHUB_OUTPUT environment variable is not set.")
+        print("GITHUB_OUTPUT environment variable is not set.", flush=True)
         sys.exit(1)
 
     with open(os.getenv("GITHUB_OUTPUT"), "a") as f:
         f.write(f"{name}={value}\n")
-    print(f"OUTPUT:{name}={value}")
+    print(f"OUTPUT:{name}={value}", flush=True)
 
 
 if __name__ == "__main__":
     filter_file = os.getenv("FILTER_FILE")
     if filter_file is None:
-        print("FILTER_FILE environment variable is not set.")
+        print("FILTER_FILE environment variable is not set.", flush=True)
         sys.exit(1)
     if not os.path.exists(filter_file):
-        print(f"Filter file {filter_file} does not exist.")
+        print(f"Filter file {filter_file} does not exist.", flush=True)
         sys.exit(1)
 
     filters = load_filter_file(filter_file)
-    print(f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}")
+    print(f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
 
     file_list = load_pr_changes() or load_git_changes(compare_to="main") or []
-    print(f"Changed files: {file_list}")
+    print(f"Changed files: {file_list}", flush=True)
 
     for filter in filters:
         filter_matches = filter.matches(file_list)
