@@ -205,7 +205,7 @@ if __name__ == "__main__":
     filters = load_filter_file(filter_file)
     print(f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
 
-    file_list = load_pr_changes() or load_git_changes(compare_to="main") or []
+    file_list = load_pr_changes() or load_git_changes(compare_to="origin/main") or []
     print(f"Changed files: {file_list}", flush=True)
 
     for filter in filters:
