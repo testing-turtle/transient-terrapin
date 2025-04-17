@@ -15,7 +15,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4 # if the checkout script/tool is baked into the base runner image, this step can be skipped as it uses the API to get changes
+      - uses: actions/checkout@v4
+        # if the checkout script/tool is baked into the base runner image, this step can be skipped as it uses the API to get changes
+        # NOTE - that _may_ not be true for the merge group event, need to investigate
+        with:
+          fetch-depth: 0 # fetch all history for all branches and tags
 
       - name: run path filter
         id: filter
