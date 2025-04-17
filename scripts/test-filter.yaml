@@ -1,9 +1,22 @@
-name: test-filter
-files:
-  - ^abc/
-  - ^def/
-  - ^dummy/
-skip-if:
-  all-files-match-any:
-    - ^ignore/abc
-    - ^ignore/def
+- name: test-filter
+  files:
+    - ^abc/
+    - ^def/
+    - ^dummy/
+  skip-if:
+    all-files-match-any:
+      - ^ignore/abc
+      - ^ignore/def
+- name: test-filter-2
+  files:
+    - ^abc/
+    - ^def/
+    - ^dummy/
+  skip-if:
+    all-files-match-any:
+      - ^ignore/abc
+      - ^ignore/def
+  skip-if:
+    all-files-match-any:
+      - ^ignore/abc
+      - ^ignore/def

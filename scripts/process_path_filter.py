@@ -48,7 +48,7 @@ class Filter:
     name: str
     files: list[PathFilter]
     skip_if: SkipIf | None = None
-    
+
     def __init__(self, name: str, files: list[str], skip_if: SkipIf | None = None):
         self.name = name
         self.files = [PathFilter(e) for e in files]
@@ -56,21 +56,26 @@ class Filter:
 
     def matches(self, file_list: list[str]) -> bool:
         match = False
-        allFilesMatchAnySkip = self.skip_if is not None and self.skip_if.all_file_match_any is not None
+        allFilesMatchAnySkip = (
+            self.skip_if is not None and self.skip_if.all_file_match_any is not None
+        )
         for file in file_list:
-            if not match: # only check for a match if we haven't found one yet
+            if not match:  # only check for a match if we haven't found one yet
                 for path_filter in self.files:
                     if path_filter.regex.match(file):
                         match = True
                         break
 
-            if allFilesMatchAnySkip: # only check for skip if we haven't already had a non-match
+            if (
+                allFilesMatchAnySkip
+            ):  # only check for skip if we haven't already had a non-match
                 for path_filter in self.skip_if.all_file_match_any:
                     if not path_filter.regex.match(file):
                         allFilesMatchAnySkip = False
                         break
         result = match and not allFilesMatchAnySkip
         return result
+
 
 def load_git_changes(compare_to: str = "main") -> list[str]:
     print("Attempting to load changes via git...")
@@ -86,10 +91,14 @@ def load_git_changes(compare_to: str = "main") -> list[str]:
         )
         files = result.stdout.splitlines()
         print(f"Got {len(files)} changed files from git")
+        return files
     except subprocess.CalledProcessError as e:
-        
-        print(f"Error getting git changes: {e}\n{e.stdout}\n{e.stderr}", file=sys.stderr)
+
+        print(
+            f"Error getting git changes: {e}\n{e.stdout}\n{e.stderr}", file=sys.stderr
+        )
         sys.exit(1)
+
 
 def load_pr_changes() -> list[str]:
     print("Attempting to loading PR changes...")
@@ -98,12 +107,12 @@ def load_pr_changes() -> list[str]:
     if github_token is None:
         print("GITHUB_TOKEN environment variable is not set.")
         return None
-    
+
     github_ref = os.getenv("GITHUB_REF")
     if github_ref is None:
         print("GITHUB_REF environment variable is not set.")
         return None
-    
+
     github_repository = os.getenv("GITHUB_REPOSITORY")
     if github_repository is None:
         print("GITHUB_REPOSITORY environment variable is not set.")
@@ -135,35 +144,45 @@ def load_pr_changes() -> list[str]:
         sys.exit(1)
 
 
-def load_filter_file(filter_file: str) -> Filter:
+def load_filter_file(filter_file: str) -> list[Filter]:
     with open(filter_file, "r") as f:
         filter_data = yaml.safe_load(f)
     if filter_data is None:
         print(f"Filter file {filter_file} is empty.")
         sys.exit(1)
-    if "name" not in filter_data:
-        print(f"Filter file {filter_file} does not contain a name.")
-        sys.exit(1)
-    if "files" not in filter_data:
-        print(f"Filter file {filter_file} does not contain a files list.")
-        sys.exit(1)
-    if not isinstance(filter_data["files"], list):
-        print(f"Filter file {filter_file} files list is not a list.")
-        sys.exit(1)
-    if len(filter_data["files"]) == 0:
-        print(f"Filter file {filter_file} files list is empty.")
+    if not isinstance(filter_data, list):
+        print(f"Filter file {filter_file} is not a list.")
         sys.exit(1)
 
-    skip_if = None
-    if "skip-if" in filter_data:
-        if "all-files-match-any" in filter_data["skip-if"]:
-            skip_if = SkipIf(filter_data["skip-if"]["all-files-match-any"])
+    filters = []
+    for filter_item in filter_data:
+        if "name" not in filter_item:
+            print(f"Filter file {filter_file} does not contain a name.")
+            sys.exit(1)
+        if "files" not in filter_item:
+            print(f"Filter file {filter_file} does not contain a files list.")
+            sys.exit(1)
+        if not isinstance(filter_item["files"], list):
+            print(f"Filter file {filter_file} files list is not a list.")
+            sys.exit(1)
+        if len(filter_item["files"]) == 0:
+            print(f"Filter file {filter_file} files list is empty.")
+            sys.exit(1)
 
-    return Filter(
-        name=filter_data["name"],
-        files=filter_data["files"],
-        skip_if=skip_if,
-    )
+        skip_if = None
+        if "skip-if" in filter_item:
+            if "all-files-match-any" in filter_item["skip-if"]:
+                skip_if = SkipIf(filter_item["skip-if"]["all-files-match-any"])
+
+        filter = Filter(
+            name=filter_item["name"],
+            files=filter_item["files"],
+            skip_if=skip_if,
+        )
+        filters.append(filter)
+
+    return filters
+
 
 def set_github_output(name: str, value: str):
     if os.getenv("GITHUB_OUTPUT") is None:
@@ -183,13 +202,14 @@ if __name__ == "__main__":
         print(f"Filter file {filter_file} does not exist.")
         sys.exit(1)
 
-    filter = load_filter_file(filter_file)
-    print(f"Loaded filter file {filter_file} with name {filter.name}")
+    filters = load_filter_file(filter_file)
+    print(f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}")
 
-    file_list = load_pr_changes() or load_git_changes(compare_to="main")
+    file_list = load_pr_changes() or load_git_changes(compare_to="main") or []
     print(f"Changed files: {file_list}")
-    filter_matches = filter.matches(file_list)
 
-    print(f"Filter matches: {filter_matches}")
+    for filter in filters:
+        filter_matches = filter.matches(file_list)
 
-    set_github_output(filter.name, str(filter_matches).lower())
+        print(f"Filter `{filter.name}` matches:{filter_matches}")
+        set_github_output(filter.name, str(filter_matches).lower())

@@ -15,7 +15,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: runn path filter
+      - uses: actions/checkout@v4 # if the checkout script/tool is baked into the base runner image, this step can be skipped as it uses the API to get changes
+
+      - name: run path filter
         id: filter
         run: python ./scripts/process_path_filter.py
         env:
