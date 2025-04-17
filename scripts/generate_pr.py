@@ -11,7 +11,7 @@ def checkout_branch(branch_name: str, create: bool = False):
 		else:
 			subprocess.run(["git", "checkout", branch_name], check=True)
 	except subprocess.CalledProcessError as e:
-		print(f"Error checking out branch {branch_name}: {e}", file=sys.stderr)
+		print(f"Error checking out branch {branch_name}: {e}", file=sys.stderr, flush=True)
 		sys.exit(1)
 
 def create_pr_file(id: str):
@@ -23,7 +23,7 @@ def create_pr_file(id: str):
 		pr_file.write("This is a test PR file.\n")
 		pr_file.write("It contains some test content.\n")
 
-	print(f"Created PR file at {os.path.abspath(pr_file_path)}")
+	print(f"Created PR file at {os.path.abspath(pr_file_path)}", flush=True)
 
 def stage_and_commit(message: str):
 	subprocess.run(["git", "add", "."])
@@ -38,16 +38,16 @@ id_suffix = nanoid.generate(size=6)
 branch_name = f"test-{id_suffix}"
 
 checkout_branch("main")
-print("Checked out main branch")
+print("Checked out main branch", flush=True)
 
 checkout_branch(branch_name, create=True)
-print(f"Checked out new branch: {branch_name}")
+print(f"Checked out new branch: {branch_name}", flush=True)
 
 create_pr_file(id_suffix)
 
 stage_and_commit(message=f"Add test file {id_suffix}")
-print("Staged and committed changes")
+print("Staged and committed changes", flush=True)
 
 
 create_pr(branch_name)
-print(f"Created PR for branch {branch_name}")
+print(f"Created PR for branch {branch_name}", flush=True)
