@@ -2,7 +2,7 @@
   files:
     - ^abc/
     - ^def/
-    - ^dummy/
+    - ^dummy_files/
   skip-if:
     all-files-match-any:
       - ^ignore/abc
@@ -11,7 +11,7 @@
   files:
     - ^abc/
     - ^def/
-    - ^dummy/
+    - ^.*\.py$
   skip-if:
     all-files-match-any:
       - ^ignore/abc
