@@ -6,10 +6,10 @@ def test_simple_match():
 		name="test",
 		files=["test"],
 	)
-	assert filter.matches(["test.txt"])
-	assert filter.matches(["test.py"])
-	assert not filter.matches(["abc"])
-	assert filter.matches(["abc", "test.py"])
+	assert filter.calculate_match_and_fingerprint(["test.txt"])[0]
+	assert filter.calculate_match_and_fingerprint(["test.py"])[0]
+	assert not filter.calculate_match_and_fingerprint(["abc"])[0]
+	assert filter.calculate_match_and_fingerprint(["abc", "test.py"])[0]
 
 
 def test_skip_files():
@@ -20,8 +20,8 @@ def test_skip_files():
 			all_file_match_any=["test.py"],
 		),
 	)
-	assert filter.matches(["test.txt"])
-	assert not filter.matches(["test.py"])
-	assert not filter.matches(["abc"])
-	assert filter.matches(["test.txt", "test.py"])
-	assert filter.matches(["abc", "test.py"])
+	assert filter.calculate_match_and_fingerprint(["test.txt"])[0]
+	assert not filter.calculate_match_and_fingerprint(["test.py"])[0]
+	assert not filter.calculate_match_and_fingerprint(["abc"])[0]
+	assert filter.calculate_match_and_fingerprint(["test.txt", "test.py"])[0]
+	assert filter.calculate_match_and_fingerprint(["abc", "test.py"])[0]

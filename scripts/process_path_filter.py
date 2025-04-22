@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import hashlib
 import os
 import re
 import requests
@@ -54,17 +55,41 @@ class Filter:
         self.files = [PathFilter(e) for e in files]
         self.skip_if = skip_if
 
-    def matches(self, file_list: list[str]) -> bool:
+    def _calculate_hash_for_files(self, file_list: list[str]) -> str:
+        # iterate the files in the file_list and calculate the sha1 hash
+        hash = hashlib.sha1()
+        
+        # Sort the list to ensure consistent hash regardless of order
+        sorted_files = sorted(file_list)
+        
+        for file in sorted_files:
+            # Add the filename to the hash
+            hash.update(file.encode('utf-8'))
+            
+            # If the file exists, add its content to the hash as well
+            if os.path.isfile(file):
+                try:
+                    with open(file, 'rb') as f:
+                        # Read the file in chunks to handle large files
+                        for chunk in iter(lambda: f.read(4096), b''):
+                            hash.update(chunk)
+                except IOError as e:
+                    print(f"Warning: Could not read file {file}: {e}", file=sys.stderr, flush=True)
+        
+        return hash.hexdigest()
+
+    def calculate_match_and_fingerprint(self, file_list: list[str]) -> tuple[bool, str]:
         match = False
         allFilesMatchAnySkip = (
             self.skip_if is not None and self.skip_if.all_file_match_any is not None
         )
+        matching_files = []
         for file in file_list:
-            if not match:  # only check for a match if we haven't found one yet
-                for path_filter in self.files:
-                    if path_filter.regex.match(file):
-                        match = True
-                        break
+            for path_filter in self.files:
+                if path_filter.regex.match(file):
+                    matching_files.append(file)
+                    match = True
+                    break
 
             if (
                 allFilesMatchAnySkip
@@ -73,8 +98,9 @@ class Filter:
                     if not path_filter.regex.match(file):
                         allFilesMatchAnySkip = False
                         break
-        result = match and not allFilesMatchAnySkip
-        return result
+        match_result = match and not allFilesMatchAnySkip
+        hash = self._calculate_hash_for_files(matching_files)
+        return match_result, hash
 
 
 def load_git_changes(compare_to: str = "main") -> list[str]:
@@ -209,5 +235,6 @@ if __name__ == "__main__":
     print(f"Changed files: {file_list}", flush=True)
 
     for filter in filters:
-        filter_matches = filter.matches(file_list)
+        filter_matches, fingerprint = filter.calculate_match_and_fingerprint(file_list)
         set_github_output(filter.name, str(filter_matches).lower())
+        set_github_output(f"{filter.name}_fingerprint", fingerprint)
