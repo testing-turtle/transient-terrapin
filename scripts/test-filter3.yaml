@@ -1,0 +1,23 @@
+- name: test-filter
+  files:
+    - ^Makefile$
+    - ^README.md$
+    - ^.*\.py$
+    - "001"
+  skip-if:
+    all-files-match-any:
+      - ^ignore/abc
+      - ^ignore/def
+
+
+- name: test-filter-1
+  files:
+    - ^.*\.py$
+  skip-if:
+    all-files-match-any:
+      - ^ignore/abc
+      - ^ignore/def
+  skip-if:
+    all-files-match-any:
+      - ^ignore/abc
+      - ^ignore/def
