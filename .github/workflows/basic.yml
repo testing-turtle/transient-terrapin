@@ -33,3 +33,11 @@ jobs:
           printenv | sort
         env:
           FILTER_VALUE: ${{ steps.filter.outputs.test-filter }}
+
+  container-test:
+    container: alpine:latest
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: os-release
+        run: cat /etc/os-release

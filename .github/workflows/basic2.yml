@@ -23,3 +23,11 @@ jobs:
       - name: Run a multi-line script
         run: |
           printenv | sort
+
+  container-test:
+    container: alpine:latest
+    runs-on: ubuntu-latest
+    steps:
+      - name: os-release
+        run: cat /etc/os-release
+          
