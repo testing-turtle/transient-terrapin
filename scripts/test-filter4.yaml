@@ -1,0 +1,33 @@
+sdk_uplane: &sdk_uplane
+  # - *general_trigger
+  # - *buildscript_sdk
+  # - *ciif_uplane_common
+  - ^l2_l3_test/generate_bitbake_recipe.sh
+  - ^meta-l2l3/
+  - ^uplane/buildscript/prepareSdk/
+  - ^uplane/.*list_dependencies\.sh$
+  - ^uplane/buildscript/shared/main_list_dependencies.py
+  - ^uplane/buildscript/shared/uplane_dependencies.yaml
+
+sdk_uplane_full: &sdk_uplane_full
+  - *sdk_uplane
+  - ^uplane/ci-if/jobs/SDK/BUILD
+
+- name: ^(MASTER/GNB/UPLANE/L2-PS/BUILD.fuse.sm6-snowfish-dyn)$
+  files:
+  # inherit from SDK
+  - *sdk_uplane_full
+  # specific triggers
+  # - *ciif_uplane_distcc
+  # - *ciif_uplane_s2f
+  # - *uplane_l2ps_fuse_build
+  # - *ciif_tools_ninja_log_parser
+  - ^uplane/L2-PS/ci-if/jobs/BUILD.fuse.sm6-snowfish-dyn/
+  - ^uplane/sct/testcase_lists/host/(component_memory_pools|testcase_schema|l2ps)\.json$
+  - ^tools/junit_merger/junit_merger.py$
+  skip-if:
+  - all-files-match-any:
+    # - *skip_non_development_files
+    # - *skip_tidy
+    # - *uplane_srunner_min
+ 
