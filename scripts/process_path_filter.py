@@ -233,6 +233,15 @@ def set_github_output(name: str, value: str):
         f.write(f"{name}={value}\n")
     print(f"OUTPUT:{name}={value}", flush=True)
 
+def set_github_env(name: str, value: str):
+    if os.getenv("GITHUB_ENV") is None:
+        print("GITHUB_ENV environment variable is not set.", flush=True)
+        sys.exit(1)
+
+    with open(os.getenv("GITHUB_ENV"), "a") as f:
+        f.write(f"{name}={value}\n")
+    print(f"OUTPUT:{name}={value}", flush=True)
+
 
 if __name__ == "__main__":
     BASE_BRANCH = os.getenv("BASE_BRANCH", "origin/main")
@@ -257,7 +266,8 @@ if __name__ == "__main__":
     for filter in filters:
         start_time = time.time()
         filter_matches = filter.is_match(file_change_list)
-        set_github_output(filter.name, str(filter_matches).lower())
+        set_github_output(f"filter_{filter.name}", str(filter_matches).lower())
+        set_github_env(f"FILTER_{filter.name.upper()}", str(filter_matches).lower())
 
         end_time = time.time()
         duration = end_time - start_time

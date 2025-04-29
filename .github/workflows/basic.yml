@@ -11,8 +11,19 @@ on:
   merge_group:
 
 jobs:
-  build:
+  calculate:
     runs-on: ubuntu-latest
+    outputs:
+      filter_src: ${{ steps.filter.outputs.filter_src }}
+      filter_test: ${{ steps.filter.outputs.filter_test }}
+      filter_common: ${{ steps.filter.outputs.filter_common }}
+      filter_common_src: ${{ steps.filter.outputs.filter_common_src }}
+      filter_common_test: ${{ steps.filter.outputs.filter_common_test }}
+      hash_src: ${{ steps.calculate_hashes.outputs.hash_src }}
+      hash_test: ${{ steps.calculate_hashes.outputs.hash_test }}
+      hash_common: ${{ steps.calculate_hashes.outputs.hash_common }}
+      hash_common_src: ${{ steps.calculate_hashes.outputs.hash_common_src }}
+      hash_common_test: ${{ steps.calculate_hashes.outputs.hash_common_test }}
 
     steps:
       - uses: actions/checkout@v4
@@ -25,17 +36,48 @@ jobs:
         id: filter
         run: python ./scripts/process_path_filter.py
         env:
+          # FILTER_FILE: determines which filter file to process
           FILTER_FILE: ./scripts/filter-example.yaml
+          # GITHUB_TOKEN: used to authenticate with the GitHub API to get the list of changed files
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Show filter results
         run: |
           printenv | sort
+        # The env section below isn't needed as the filter step outputs to GITHUB_ENV
+        # env:
+        #   FILTER_COMMON: ${{ steps.filter.outputs.filter_common }}
+        #   FILTER_COMMON_SRC: ${{ steps.filter.outputs.filter_common_src }}
+        #   FILTER_COMMON_TEST: ${{ steps.filter.outputs.filter_common_test }}
+        #   FILTER_SRC: ${{ steps.filter.outputs.filter_src }}
+        #   FILTER_TEST: ${{ steps.filter.outputs.filter_test }}
+
+      - name: Calculate hashes
+        id: calculate_hashes
         env:
-          FILTER_COMMON: ${{ steps.filter.outputs.common }}
-          FILTER_COMMON_SRC: ${{ steps.filter.outputs.common_src }}
-          FILTER_COMMON_TEST: ${{ steps.filter.outputs.common_test }}
-          FILTER_SRC: ${{ steps.filter.outputs.src }}
-          FILTER_TEST: ${{ steps.filter.outputs.test }}
+          FILTER_FILE: ./scripts/filter-example.yaml
+        run: |
+            python ./scripts/calculate_hashes.py
+
+
+  build-common:
+    runs-on: ubuntu-latest
+    needs: calculate
+    if:  ${{ needs.calculate.outputs.filter_common_src == 'true' }}
+    env:
+      HASH_COMMON_SRC: ${{ needs.calculate.outputs.hash_common_src }}
+    steps:
+      - name: Build
+        run: |
+          echo "Pretending to build... $HASH_COMMON_SRC"
+          sleep 5
+          echo "common_src built for $HASH_COMMON_SRC" > /tmp/build_common_src.txt
+          echo "Pretending to build... done"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-common-src-${{ needs.calculate.outputs.hash_common_src }}
+          retention-days: 3
 
 
