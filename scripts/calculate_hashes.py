@@ -211,13 +211,18 @@ if __name__ == "__main__":
             print(f"{filter_var_name} environment variable is not set.", flush=True)
             sys.exit(1)
         if filter_var_value.lower() != "true":
-            with open(os.path.join(".hashes", f"{filter.name}.hash"), "r") as f:
-                hash = f.read().strip()
-            
-            set_github_output(f"hash_{filter.name}", hash)
-            set_github_env(f"hash_{filter.name}", hash)
-            print(f"Filter {filter.name} - using cached hash '{hash}'", flush=True)
-            continue
+            hash_file = os.path.join(".hashes", f"{filter.name}.hash")
+            if os.path.exists(hash_file):
+                with open(hash_file, "r") as f:
+                    hash = f.read().strip()
+                set_github_output(f"hash_{filter.name}", hash)
+                set_github_env(f"hash_{filter.name}", hash)
+                print(f"Filter {filter.name} - using cached hash '{hash}'", flush=True)
+                continue
+            else:
+                update_filter = True
+                print(
+                    f"Filter {filter.name} - no cached hash found, calculating...", flush=True)
 
 
         start_time = time.time()
