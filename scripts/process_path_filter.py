@@ -1,6 +1,9 @@
 from dataclasses import dataclass
+import hashlib
 import os
 import re
+import time
+from typing import Iterable
 import requests
 import subprocess
 import sys
@@ -54,17 +57,25 @@ class Filter:
         self.files = [PathFilter(e) for e in files]
         self.skip_if = skip_if
 
-    def matches(self, file_list: list[str]) -> bool:
+    def is_match_for_file(self, file: str) -> bool:
+        """
+        Check if the file matches any of the filters
+        """
+        for path_filter in self.files:
+            if path_filter.regex.match(file):
+                return True
+        return False
+
+    def is_match(self, files: Iterable[str]) -> bool:
         match = False
         allFilesMatchAnySkip = (
             self.skip_if is not None and self.skip_if.all_file_match_any is not None
         )
-        for file in file_list:
+        for file in files:
             if not match:  # only check for a match if we haven't found one yet
-                for path_filter in self.files:
-                    if path_filter.regex.match(file):
-                        match = True
-                        break
+                if self.is_match_for_file(file):
+                    match = True
+                    break
 
             if (
                 allFilesMatchAnySkip
@@ -76,6 +87,30 @@ class Filter:
         result = match and not allFilesMatchAnySkip
         return result
 
+    def calculate_fingerprint(self, files: Iterable[str]) -> str:
+        """
+        Calculate the fingerprint based on the files that match the filter
+
+        NOTE: to get a stable fingerprint, ensure a consistent order of files
+        """
+
+        # iterate the files in the file_list and calculate the sha1 hash
+        hash = hashlib.sha1()
+
+        for file in files:
+            for path_filter in self.files:
+                if path_filter.regex.match(file):
+                    # print(f"Adding {file} to hash", flush=True)
+                    # Add the filename to the hash
+                    hash.update(file.encode("utf-8"))
+
+                    with open(file, "rb") as f:
+                        # Read the file in chunks to handle large files
+                        for chunk in iter(lambda: f.read(4096), b""):
+                            hash.update(chunk)
+                    break
+
+        return hash.hexdigest()
 
 def load_git_changes(compare_to: str = "main") -> list[str]:
     print("Attempting to load changes via git...", flush=True)
@@ -182,6 +217,12 @@ def load_filter_file(filter_file: str) -> list[Filter]:
 
     return filters
 
+def recursive_file_list(path: str) -> Iterable[str]:
+    for root, dirnames, files in os.walk(path, topdown=True):
+        if ".git" in dirnames:
+            dirnames.remove(".git")
+        for file in sorted(files):
+            yield os.path.relpath(os.path.join(root, file), path)
 
 def set_github_output(name: str, value: str):
     if os.getenv("GITHUB_OUTPUT") is None:
@@ -194,6 +235,8 @@ def set_github_output(name: str, value: str):
 
 
 if __name__ == "__main__":
+    BASE_BRANCH = os.getenv("BASE_BRANCH", "origin/main")
+
     filter_file = os.getenv("FILTER_FILE")
     if filter_file is None:
         print("FILTER_FILE environment variable is not set.", flush=True)
@@ -205,9 +248,26 @@ if __name__ == "__main__":
     filters = load_filter_file(filter_file)
     print(f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
 
-    file_list = load_pr_changes() or load_git_changes(compare_to="origin/main") or []
-    print(f"Changed files: {file_list}", flush=True)
+    file_change_list = load_pr_changes() or load_git_changes(compare_to=BASE_BRANCH) or []
+    if len(file_change_list) >10:
+        print(f"Changed files (partial list): {file_change_list[0:10]}", flush=True)
+    else:
+        print(f"Changed files: {file_change_list[0:10]}", flush=True)
 
     for filter in filters:
-        filter_matches = filter.matches(file_list)
+        start_time = time.time()
+        filter_matches = filter.is_match(file_change_list)
         set_github_output(filter.name, str(filter_matches).lower())
+
+        end_time = time.time()
+        duration = end_time - start_time
+        print(f"Filter {filter.name} took {duration:.3f} seconds to process", flush=True)
+
+
+
+        # start_time = time.time()
+        # fingerprint = filter.calculate_fingerprint(recursive_file_list("."))
+        # set_github_output(f"{filter.name}_fingerprint", fingerprint)
+        # end_time = time.time()
+        # duration = end_time - start_time
+        # # print(f"Filter {filter.name} fingerprint calculation took {duration:.3f} seconds", flush=True)

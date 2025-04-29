@@ -1,0 +1,37 @@
+- name: common
+  files:
+    - ^dummy_files/common/
+  skip-if:
+    all-files-match-any:
+      - \.md$
+      - \.foo$
+- name: common_src
+  files:
+    - ^dummy_files/common/src
+  skip-if:
+    all-files-match-any:
+      - \.md$
+      - \.foo$
+- name: common_test
+  files:
+    - ^dummy_files/common/test
+  skip-if:
+    all-files-match-any:
+      - \.md$
+      - \.foo$
+- name: src
+  files:
+    - ^dummy_files/common/src
+    - ^dummy_files/src
+  skip-if:
+    all-files-match-any:
+      - \.md$
+      - \.foo$
+- name: test
+  files:
+    - ^dummy_files/common/test
+    - ^dummy_files/test
+  skip-if:
+    all-files-match-any:
+      - \.md$
+      - \.foo$

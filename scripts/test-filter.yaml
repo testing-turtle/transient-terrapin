@@ -1,17 +1,17 @@
-- name: test-filter
+- name: test_filter
   files:
     - ^abc/
     - ^def/
-    - ^dummy/
+    - ^dummy_files/
   skip-if:
     all-files-match-any:
       - ^ignore/abc
       - ^ignore/def
-- name: test-filter-2
+- name: test_filter_2
   files:
     - ^abc/
     - ^def/
-    - ^dummy/
+    - ^.*\.py$
   skip-if:
     all-files-match-any:
       - ^ignore/abc

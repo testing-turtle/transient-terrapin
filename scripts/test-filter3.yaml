@@ -1,0 +1,54 @@
+- name: test-filter
+  files:
+    - ^Makefile$
+    - ^README.md$
+    - ^.*\.py$
+    # - ^.*\.txt$
+    # - ^dummy_files/.*001.*
+    # - ^dummy_files/.*\.txt$
+    # - "001"
+  skip-if:
+    all-files-match-any:
+      - ^ignore/abc
+      - ^ignore/def
+
+- name: test-filter-all-txt
+  files:
+    - ^Makefile$
+    - ^README.md$
+    - ^.*\.py$
+    # - ^.*\.txt$
+    # - ^dummy_files/.*001.*
+    - ^dummy_files/.*\.txt$
+    # - "001"
+  skip-if:
+    all-files-match-any:
+      - ^ignore/abc
+      - ^ignore/def
+
+- name: test-filter-001-txt
+  files:
+    - ^Makefile$
+    - ^README.md$
+    - ^.*\.py$
+    # - ^.*\.txt$
+    - ^dummy_files/.*001.*
+    # - ^dummy_files/.*\.txt$
+    # - "001"
+  skip-if:
+    all-files-match-any:
+      - ^ignore/abc
+      - ^ignore/def
+
+
+# - name: test-filter-1
+#   files:
+#     - ^.*\.py$
+#   skip-if:
+#     all-files-match-any:
+#       - ^ignore/abc
+#       - ^ignore/def
+#   skip-if:
+#     all-files-match-any:
+#       - ^ignore/abc
+#       - ^ignore/def
