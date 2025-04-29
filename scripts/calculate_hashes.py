@@ -27,6 +27,8 @@ import yaml
 #
 
 
+# TODO - split this to share filter definitions with other scripts
+
 class PathFilter:
     def __init__(self, expression: str):
         self.expression = expression
@@ -44,7 +46,8 @@ class SkipIf:
 
     def __init__(self, all_file_match_any: list[str] | None = None):
         if all_file_match_any is not None:
-            self.all_file_match_any = [PathFilter(e) for e in all_file_match_any]
+            self.all_file_match_any = [
+                PathFilter(e) for e in all_file_match_any]
 
 
 class Filter:
@@ -87,7 +90,7 @@ class Filter:
         result = match and not allFilesMatchAnySkip
         return result
 
-    def calculate_fingerprint(self, files: Iterable[str]) -> str:
+    def calculate_hash(self, files: Iterable[str]) -> str:
         """
         Calculate the fingerprint based on the files that match the filter
 
@@ -112,71 +115,6 @@ class Filter:
 
         return hash.hexdigest()
 
-def load_git_changes(compare_to: str = "main") -> list[str]:
-    print("Attempting to load changes via git...", flush=True)
-    # TODO - update to find common ancestor from current commit to compare_to
-    # TODO - explore using GH API to get changed files - would remove the need to checkout code
-    #        https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#list-pull-requests-files
-    try:
-        result = subprocess.run(
-            ["git", "diff", "--name-only", compare_to],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        files = result.stdout.splitlines()
-        print(f"Got {len(files)} changed files from git", flush=True)
-        return files
-    except subprocess.CalledProcessError as e:
-        print(
-            f"Error getting git changes: {e}\n{e.stdout}\n{e.stderr}", file=sys.stderr, flush=True
-        )
-        sys.exit(1)
-
-
-def load_pr_changes() -> list[str]:
-    print("Attempting to loading PR changes...", flush=True)
-    # GH env vars: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/store-information-in-variables#default-environment-variables
-    github_token = os.getenv("GITHUB_TOKEN")
-    if github_token is None:
-        print("GITHUB_TOKEN environment variable is not set.", flush=True)
-        return None
-
-    github_ref = os.getenv("GITHUB_REF")
-    if github_ref is None:
-        print("GITHUB_REF environment variable is not set.", flush=True)
-        return None
-
-    github_repository = os.getenv("GITHUB_REPOSITORY")
-    if github_repository is None:
-        print("GITHUB_REPOSITORY environment variable is not set.", flush=True)
-        return None
-
-    # parse 'refs/pull/123/merge' to get the PR number
-    if not github_ref.startswith("refs/pull/"):
-        print(f"Not a PR ref {github_ref}", flush=True)
-        return None
-    pr_number = github_ref.split("/")[2]
-
-    # API: https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#list-pull-requests-files
-    url = f"https://api.github.com/repos/{github_repository}/pulls/{pr_number}/files"
-    headers = {
-        "Authorization": f"token {github_token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-    try:
-        # TODO - handle paging
-        resp = requests.get(url, headers=headers)
-        resp.raise_for_status()
-        files = resp.json()
-        file_list = [file["filename"] for file in files]
-        print(f"Got {len(file_list)} changed files for PR {pr_number}", flush=True)
-        return file_list
-    except requests.exceptions.RequestException as e:
-        print(f"Error getting PR changes: {e}", file=sys.stderr, flush=True)
-        sys.exit(1)
-
 
 def load_filter_file(filter_file: str) -> list[Filter]:
     with open(filter_file, "r") as f:
@@ -191,16 +129,20 @@ def load_filter_file(filter_file: str) -> list[Filter]:
     filters = []
     for filter_item in filter_data:
         if "name" not in filter_item:
-            print(f"Filter file {filter_file} does not contain a name.", flush=True)
+            print(
+                f"Filter file {filter_file} does not contain a name.", flush=True)
             sys.exit(1)
         if "files" not in filter_item:
-            print(f"Filter file {filter_file} does not contain a files list.", flush=True)
+            print(
+                f"Filter file {filter_file} does not contain a files list.", flush=True)
             sys.exit(1)
         if not isinstance(filter_item["files"], list):
-            print(f"Filter file {filter_file} files list is not a list.", flush=True)
+            print(
+                f"Filter file {filter_file} files list is not a list.", flush=True)
             sys.exit(1)
         if len(filter_item["files"]) == 0:
-            print(f"Filter file {filter_file} files list is empty.", flush=True)
+            print(
+                f"Filter file {filter_file} files list is empty.", flush=True)
             sys.exit(1)
 
         skip_if = None
@@ -217,12 +159,14 @@ def load_filter_file(filter_file: str) -> list[Filter]:
 
     return filters
 
+
 def recursive_file_list(path: str) -> Iterable[str]:
     for root, dirnames, files in os.walk(path, topdown=True):
         if ".git" in dirnames:
             dirnames.remove(".git")
         for file in sorted(files):
             yield os.path.relpath(os.path.join(root, file), path)
+
 
 def set_github_output(name: str, value: str):
     if os.getenv("GITHUB_OUTPUT") is None:
@@ -231,10 +175,23 @@ def set_github_output(name: str, value: str):
 
     with open(os.getenv("GITHUB_OUTPUT"), "a") as f:
         f.write(f"{name}={value}\n")
-    print(f"OUTPUT:{name}={value}", flush=True)
+    # print(f"OUTPUT:{name}={value}", flush=True)
+
+
+def set_github_env(name: str, value: str):
+    if os.getenv("GITHUB_ENV") is None:
+        print("GITHUB_ENV environment variable is not set.", flush=True)
+        sys.exit(1)
+
+    with open(os.getenv("GITHUB_ENV"), "a") as f:
+        f.write(f"{name}={value}\n")
+    # print(f"OUTPUT:{name}={value}", flush=True)
 
 
 if __name__ == "__main__":
+    if not os.path.exists(".hashes"):
+        os.mkdir(".hashes")
+
     filter_file = os.getenv("FILTER_FILE")
     if filter_file is None:
         print("FILTER_FILE environment variable is not set.", flush=True)
@@ -244,27 +201,38 @@ if __name__ == "__main__":
         sys.exit(1)
 
     filters = load_filter_file(filter_file)
-    print(f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
-
-    # file_change_list = load_pr_changes() or load_git_changes(compare_to="origin/main") or []
-    # if len(file_change_list) >10:
-    #     print(f"Changed files (partial list): {file_change_list[0:10]}", flush=True)
-    # else:
-    #     print(f"Changed files: {file_change_list[0:10]}", flush=True)
+    print(
+        f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
 
     for filter in filters:
-        # start_time = time.time()
-        # filter_matches = filter.is_match(file_change_list)
-        # set_github_output(filter.name, str(filter_matches).lower())
-
-        # end_time = time.time()
-        # duration = end_time - start_time
-        # # print(f"Filter {filter.name} took {duration:.3f} seconds to process", flush=True)
+        filter_var_name = f"FILTER_{filter.name.upper()}"
+        filter_var_value = os.getenv(filter_var_name, None)
+        if filter_var_value is None:
+            print(f"{filter_var_name} environment variable is not set.", flush=True)
+            sys.exit(1)
+        hash_file = os.path.join(".hashes", f"{filter.name}.hash")
+        if filter_var_value.lower() != "true":
+            if os.path.exists(hash_file):
+                with open(hash_file, "r") as f:
+                    hash = f.read().strip()
+                set_github_output(f"hash_{filter.name}", hash)
+                set_github_env(f"hash_{filter.name}", hash)
+                print(f"Filter {filter.name} - using cached hash '{hash}'", flush=True)
+                continue
+            else:
+                update_filter = True
+                print(
+                    f"Filter {filter.name} - no cached hash found, calculating...", flush=True)
 
 
         start_time = time.time()
-        fingerprint = filter.calculate_fingerprint(recursive_file_list("."))
-        set_github_output(f"{filter.name}_fingerprint", fingerprint)
+        hash = filter.calculate_hash(recursive_file_list("."))
+        set_github_output(f"hash_{filter.name}", hash)
+        set_github_env(f"hash_{filter.name}", hash)
+        with open(hash_file, "w") as f:
+            f.write(hash)
         end_time = time.time()
         duration = end_time - start_time
-        # print(f"Filter {filter.name} fingerprint calculation took {duration:.3f} seconds", flush=True)
+        print(
+            f"Filter {filter.name} - hash: '{hash}' - took {duration:.3f} seconds", flush=True)
+        
