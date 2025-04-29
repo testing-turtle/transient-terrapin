@@ -32,6 +32,21 @@ jobs:
         with:
           fetch-depth: 0 # fetch all history for all branches and tags
 
+      - name: Load hash cache
+        id: load_hash_cache
+        uses: actions/cache@v3
+        with:
+          path: .hashes
+          # build hash key with the target branch name, commit SHA, and run ID to generate a unique cache key
+          key: hash-cache-${{ github.ref }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt}}
+          # use restore keys to restore the cache if the exact key is not found
+          # the path filter should ensure that we only use cached hashes that are relevant to the current commit
+          restore-keys: |
+            hash-cache-${{ github.ref }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+            hash-cache-${{ github.ref }}-${{ github.sha }}-${{ github.run_id }}
+            hash-cache-${{ github.ref }}-${{ github.sha }}
+            hash-cache-${{ github.ref }}
+
       - name: run path filter
         id: filter
         run: python ./scripts/process_path_filter.py
@@ -59,6 +74,7 @@ jobs:
         run: |
             python ./scripts/calculate_hashes.py
 
+      # TODO - add step to check if artifacts exist and if not update the filter values
 
   build-common:
     runs-on: ubuntu-latest

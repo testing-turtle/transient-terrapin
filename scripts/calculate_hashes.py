@@ -175,7 +175,7 @@ def set_github_output(name: str, value: str):
 
     with open(os.getenv("GITHUB_OUTPUT"), "a") as f:
         f.write(f"{name}={value}\n")
-    print(f"OUTPUT:{name}={value}", flush=True)
+    # print(f"OUTPUT:{name}={value}", flush=True)
 
 
 def set_github_env(name: str, value: str):
@@ -185,10 +185,13 @@ def set_github_env(name: str, value: str):
 
     with open(os.getenv("GITHUB_ENV"), "a") as f:
         f.write(f"{name}={value}\n")
-    print(f"OUTPUT:{name}={value}", flush=True)
+    # print(f"OUTPUT:{name}={value}", flush=True)
 
 
 if __name__ == "__main__":
+    if not os.path.exists(".hashes"):
+        os.mkdir(".hashes")
+
     filter_file = os.getenv("FILTER_FILE")
     if filter_file is None:
         print("FILTER_FILE environment variable is not set.", flush=True)
@@ -203,16 +206,19 @@ if __name__ == "__main__":
 
     for filter in filters:
         filter_var_name = f"FILTER_{filter.name.upper()}"
-        filter_var_value = os.getenv(filter_var_name)
+        filter_var_value = os.getenv(filter_var_name, None)
         if filter_var_value is None:
             print(f"{filter_var_name} environment variable is not set.", flush=True)
             sys.exit(1)
-        if filter_var_value.lower() == "false":
-            print(f"Skipping filter {filter.name}", flush=True)
-            # TODO - set from cache
+        if filter_var_value.lower() != "true":
+            with open(os.path.join(".hashes", f"{filter.name}.hash"), "r") as f:
+                hash = f.read().strip()
+            
+            set_github_output(f"hash_{filter.name}", hash)
+            set_github_env(f"hash_{filter.name}", hash)
+            print(f"Filter {filter.name} - using cached hash '{hash}'", flush=True)
             continue
 
-        print(f"Calculating fingerprint for filter {filter.name}", flush=True)
 
         start_time = time.time()
         hash = filter.calculate_hash(recursive_file_list("."))
@@ -221,4 +227,4 @@ if __name__ == "__main__":
         end_time = time.time()
         duration = end_time - start_time
         print(
-            f"Filter {filter.name} fingerprint calculation took {duration:.3f} seconds", flush=True)
+            f"Filter {filter.name} - hash: '{hash}' - took {duration:.3f} seconds", flush=True)
