@@ -210,8 +210,8 @@ if __name__ == "__main__":
         if filter_var_value is None:
             print(f"{filter_var_name} environment variable is not set.", flush=True)
             sys.exit(1)
+        hash_file = os.path.join(".hashes", f"{filter.name}.hash")
         if filter_var_value.lower() != "true":
-            hash_file = os.path.join(".hashes", f"{filter.name}.hash")
             if os.path.exists(hash_file):
                 with open(hash_file, "r") as f:
                     hash = f.read().strip()
@@ -229,7 +229,10 @@ if __name__ == "__main__":
         hash = filter.calculate_hash(recursive_file_list("."))
         set_github_output(f"hash_{filter.name}", hash)
         set_github_env(f"hash_{filter.name}", hash)
+        with open(hash_file, "w") as f:
+            f.write(hash)
         end_time = time.time()
         duration = end_time - start_time
         print(
             f"Filter {filter.name} - hash: '{hash}' - took {duration:.3f} seconds", flush=True)
+        
