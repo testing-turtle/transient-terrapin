@@ -235,8 +235,6 @@ def set_github_output(name: str, value: str):
 
 
 if __name__ == "__main__":
-    BASE_BRANCH = os.getenv("BASE_BRANCH", "origin/main")
-
     filter_file = os.getenv("FILTER_FILE")
     if filter_file is None:
         print("FILTER_FILE environment variable is not set.", flush=True)
@@ -248,26 +246,25 @@ if __name__ == "__main__":
     filters = load_filter_file(filter_file)
     print(f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
 
-    file_change_list = load_pr_changes() or load_git_changes(compare_to=BASE_BRANCH) or []
-    if len(file_change_list) >10:
-        print(f"Changed files (partial list): {file_change_list[0:10]}", flush=True)
-    else:
-        print(f"Changed files: {file_change_list[0:10]}", flush=True)
+    # file_change_list = load_pr_changes() or load_git_changes(compare_to="origin/main") or []
+    # if len(file_change_list) >10:
+    #     print(f"Changed files (partial list): {file_change_list[0:10]}", flush=True)
+    # else:
+    #     print(f"Changed files: {file_change_list[0:10]}", flush=True)
 
     for filter in filters:
-        start_time = time.time()
-        filter_matches = filter.is_match(file_change_list)
-        set_github_output(filter.name, str(filter_matches).lower())
-
-        end_time = time.time()
-        duration = end_time - start_time
-        print(f"Filter {filter.name} took {duration:.3f} seconds to process", flush=True)
-
-
-
         # start_time = time.time()
-        # fingerprint = filter.calculate_fingerprint(recursive_file_list("."))
-        # set_github_output(f"{filter.name}_fingerprint", fingerprint)
+        # filter_matches = filter.is_match(file_change_list)
+        # set_github_output(filter.name, str(filter_matches).lower())
+
         # end_time = time.time()
         # duration = end_time - start_time
-        # # print(f"Filter {filter.name} fingerprint calculation took {duration:.3f} seconds", flush=True)
+        # # print(f"Filter {filter.name} took {duration:.3f} seconds to process", flush=True)
+
+
+        start_time = time.time()
+        fingerprint = filter.calculate_fingerprint(recursive_file_list("."))
+        set_github_output(f"{filter.name}_fingerprint", fingerprint)
+        end_time = time.time()
+        duration = end_time - start_time
+        # print(f"Filter {filter.name} fingerprint calculation took {duration:.3f} seconds", flush=True)

@@ -5,14 +5,14 @@
     all-files-match-any:
       - \.md$
       - \.foo$
-- name: common-src
+- name: common_src
   files:
     - ^dummy_files/common/src
   skip-if:
     all-files-match-any:
       - \.md$
       - \.foo$
-- name: common-test
+- name: common_test
   files:
     - ^dummy_files/common/test
   skip-if:

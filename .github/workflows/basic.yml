@@ -25,11 +25,17 @@ jobs:
         id: filter
         run: python ./scripts/process_path_filter.py
         env:
-          FILTER_FILE: ./scripts/test-filter.yaml
+          FILTER_FILE: ./scripts/filter-example.yaml
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Run a multi-line script
+      - name: Show filter results
         run: |
           printenv | sort
         env:
-          FILTER_VALUE: ${{ steps.filter.outputs.test-filter }}
+          FILTER_COMMON: ${{ steps.filter.outputs.common }}
+          FILTER_COMMON_SRC: ${{ steps.filter.outputs.common_src }}
+          FILTER_COMMON_TEST: ${{ steps.filter.outputs.common_test }}
+          FILTER_SRC: ${{ steps.filter.outputs.src }}
+          FILTER_TEST: ${{ steps.filter.outputs.test }}
+
+
