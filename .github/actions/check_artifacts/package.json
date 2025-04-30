@@ -8,8 +8,11 @@
   "author": "",
   "license": "ISC",
   "description": "",
+  "type": "module",
   "dependencies": {
+    "@actions/artifact": "^2.3.2",
     "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.0"
+    "@actions/github": "^6.0.0",
+    "yaml": "^2.7.1"
   }
 }

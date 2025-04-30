@@ -12,6 +12,7 @@
 			"installNpm": true,
 			"installPnpm": false
 		},
+		"ghcr.io/devcontainers/features/github-cli": {}
 	},
 	"customizations": {
 		"vscode": {

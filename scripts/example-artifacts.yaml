@@ -1,0 +1,6 @@
+- filter_name: common
+  suffix: build
+- filter_name: common
+  suffix: test
+- filter_name: src
+  suffix: build
