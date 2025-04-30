@@ -50,6 +50,8 @@ jobs:
 
       - name: run path filter
         id: filter
+        # Run through the filters in the specified file.
+        # For each filter, evaluate the condition and output to step outputs and GITHUB_ENV
         run: python ./scripts/process_path_filter.py
         env:
           # FILTER_FILE: determines which filter file to process
@@ -76,6 +78,20 @@ jobs:
             python ./scripts/calculate_hashes.py
 
       # TODO - add step to check if artifacts exist and if not update the filter values
+      
+
+      # TODO - check out ncc or similar to avoid npm install step: https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action#commit-tag-and-push-your-action
+
+      - name: Check for artifacts - npm install
+        run: |
+          cd .github/actions/temp-action
+          npm install
+
+      - name: Check for artifacts
+        id: check_artifacts
+        uses: ./.github/actions/temp-action
+        with:
+          who-to-greet: 'World'
 
   build-common:
     runs-on: ubuntu-latest
