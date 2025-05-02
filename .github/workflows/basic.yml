@@ -45,7 +45,7 @@ jobs:
 
       - name: Load hash cache
         id: load_hash_cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .hashes
           # build hash key with the target branch name, commit SHA, and run ID to generate a unique cache key
@@ -58,7 +58,7 @@ jobs:
             hash-cache-${{ github.ref }}-${{ github.sha }}-${{ github.run_id }}
             hash-cache-${{ github.ref }}-${{ github.sha }}
             hash-cache-${{ github.ref }}
-
+        
       - name: run path filter
         id: filter
         # Run through the filters in the specified file.
@@ -128,6 +128,8 @@ jobs:
     env:
       FINGERPRINT_COMMON_BUILD: ${{ needs.calculate.outputs.artifact_fingerprint_common_build }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Build
         run: |
           echo "Pretending to build... $FINGERPRINT_COMMON_BUILD"
@@ -138,25 +140,33 @@ jobs:
           echo ... ${{ fromJson(needs.calculate.outputs.artifact_exists).common_build }}''
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/cache/save@v4
         with:
-          name: ${{ needs.calculate.outputs.artifact_fingerprint_common_build }}
-          path: build_common.txt
-          retention-days: 3
+          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_build }}
+          path: |
+            build_common.txt
+            README.md
+          # retention period?
 
   test-common:
     runs-on: ubuntu-latest
     needs: [calculate, build-common]
-    if:  ${{ needs.calculate.outputs.artifact_exists_common_test != 'true' }}
+    if:  ${{ always() && needs.calculate.outputs.artifact_exists_common_test != 'true' }}
     env:
       FINGERPRINT_COMMON_TEST: ${{ needs.calculate.outputs.artifact_fingerprint_common_test }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download artifact
-        uses: actions/download-artifact@v4
+        id: download_artifact
+        uses: actions/cache/restore@v4
         with:
-          name: ${{ needs.calculate.outputs.artifact_fingerprint_common_build }}
-          path: .
-      
+          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_build }}
+          path: |
+            build_common.txt
+            README.md
+          fail-on-cache-miss: true
+
       - name: temp
         run: |
           ls -la
@@ -171,11 +181,13 @@ jobs:
           echo "Pretending to test... done"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/cache/save@v4
         with:
-          name: ${{ needs.calculate.outputs.artifact_fingerprint_common_test }}
-          path: test_common.txt
-          retention-days: 3
+          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_test }}
+          path: |
+            test_common.txt
+            README.md
+          # retention?
 
   final:
     runs-on: ubuntu-latest

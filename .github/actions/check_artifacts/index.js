@@ -5,6 +5,7 @@ import path from 'path';
 import yaml from 'yaml';
 import { fileURLToPath } from 'url';
 import { DefaultArtifactClient, ArtifactNotFoundError } from '@actions/artifact';
+import { restoreCache } from '@actions/cache'
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,6 +31,10 @@ console.log(`Artifacts file: ${artifactsFile}`);
 // - artifact_exists_<filter_name>: true if the artifact exists, false otherwise
 //
 
+// NOTE: The term artifact is used here but generally refers to cache items
+//       since GH artifacts are scoped to a workflow run.
+//       The list of artifact keys and hashs _is_ stored as a workflow artifact
+
 
 function getHashes() {
   const hashes = {};
@@ -48,17 +53,15 @@ function getHashes() {
   return hashes;
 }
 
+const artifactPrefix = github.context.repo.owner + "_" + github.context.repo.repo;
 
 async function testArtifactExists(artifactKey) {
-  try {
-    await artifactClient.getArtifact(artifactKey, { repository: github.context.repo.repo, owner: github.context.repo.owner });
-    return true;
-  } catch (error) {
-    if (error instanceof ArtifactNotFoundError) {
-      return false
-    }
-    throw error;
-  }
+  // NOTE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // TODO - this file list is temporary to test the behaviour.
+  // - it seems that the cache paths need to match in order to test whether the cache exists?
+  // NOTE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  const cacheKey = await restoreCache(["build_common.txt", "README.md"], artifactKey, [], { lookupOnly: true });
+  return cacheKey !== undefined;
 }
 
 const hashes = getHashes();
@@ -66,7 +69,6 @@ const hashes = getHashes();
 console.log("==== hashes ====");
 console.log(hashes);
 
-const artifactClient = new DefaultArtifactClient()
 
 // Load the artifacts file and parse the YAML
 const artifactsFilePath = path.join(__dirname, '../../../', artifactsFile);
@@ -81,7 +83,7 @@ const artifactExistsDictionary = {};
 for (const artifact of artifacts) {
   const { filter_name, suffix } = artifact;
   const artifactName = `${filter_name}_${suffix}`;
-  const fingerprint = `${artifactName}_${hashes[filter_name]}`;
+  const fingerprint = `${artifactPrefix}_${artifactName}_${hashes[filter_name]}`;
   const artifactExists = await testArtifactExists(fingerprint);
   console.log(`Artifact fingerprint: ${fingerprint} - exists: ${artifactExists}`);
   // Set outputs for the fingerprint for each artifact
@@ -120,7 +122,10 @@ for (const artifact of artifacts) {
 fs.writeFileSync(artifactOutputFile, JSON.stringify(result, null, 2), 'utf8');
 
 
+const artifactClient = new DefaultArtifactClient()
+
 const artifactResultKey = `artifact_summary_${github.context.repo.owner}_${github.context.repo.repo}_${github.context.runId}`; // TODO - do we need run_attempt?
 core.setOutput("artifact_result_key", artifactResultKey);
 artifactClient.uploadArtifact(artifactResultKey, [artifactOutputFile], artifactOutputDirectory, { retentionDays: 1 });
+
 
