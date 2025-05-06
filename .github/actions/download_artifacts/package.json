@@ -14,8 +14,6 @@
     "@actions/cache": "^4.0.3",
     "@actions/core": "^1.11.1",
     "@actions/github": "^6.0.0",
-    "@azure/identity": "^4.9.1",
-    "@azure/storage-blob": "^12.27.0",
     "yaml": "^2.7.1"
   }
 }

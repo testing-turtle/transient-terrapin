@@ -7,6 +7,9 @@ import { fileURLToPath } from 'url';
 import { DefaultArtifactClient, ArtifactNotFoundError } from '@actions/artifact';
 import { restoreCache } from '@actions/cache'
 
+import {DefaultAzureCredential} from '@azure/identity';
+import { BlobServiceClient, StorageSharedKeyCredential } from "@azure/storage-blob";
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,6 +19,9 @@ if (!artifactsFile) {
   core.setFailed('artifacts-file input is required');
 }
 console.log(`Artifacts file: ${artifactsFile}`);
+
+const storageAccountName = core.getInput('storage-account', {required: true});
+const containerName = core.getInput('container', {required: true});
 
 //
 // This action reads a YAML file containing a list of artifacts.
@@ -35,37 +41,37 @@ console.log(`Artifacts file: ${artifactsFile}`);
 //       since GH artifacts are scoped to a workflow run.
 //       The list of artifact keys and hashs _is_ stored as a workflow artifact
 
+const azCredential = new  DefaultAzureCredential();
+const blobClient = new BlobServiceClient(
+  `https://${storageAccountName}.blob.core.windows.net`,
+  azCredential
+);
+const containerClient = blobClient.getContainerClient(containerName)
+
 
 function getHashes() {
   const hashes = {};
   // List files in .hashes directory and load each file
   const dirPath = path.join(__dirname, '../../../.hashes');
   const files = fs.readdirSync(dirPath);
-  // console.log("==== hashes ====");
   files.forEach(file => {
     const filePath = path.join(dirPath, file);
     const fileContent = fs.readFileSync(filePath, 'utf8');
     const filterName = path.basename(filePath, ".hash");
-    // console.log(`Filter: ${filterName}`);
-    // console.log(`Hash: ${fileContent}`);
     hashes[filterName] = fileContent;
   });
   return hashes;
 }
 
-const artifactPrefix = github.context.repo.owner + "_" + github.context.repo.repo;
 
 async function testArtifactExists(artifactKey) {
-  // NOTE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  // TODO - this file list is temporary to test the behaviour.
-  // - it seems that the cache paths need to match in order to test whether the cache exists?
-  // NOTE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  const cacheKey = await restoreCache(["build_common.txt", "README.md"], artifactKey, [], { lookupOnly: true });
-  return cacheKey !== undefined;
+  const blobName = `${artifactKey}/artifacts.zip`;
+  const exists = await containerClient.getBlobClient(blobName).exists()
+  console.log(`Blob ${blobName} exists: ${exists}`);
+  return exists;
 }
 
 const hashes = getHashes();
-
 console.log("==== hashes ====");
 console.log(hashes);
 
@@ -80,6 +86,7 @@ const artifacts = yaml.parse(artifactsFileContent);
 console.log("==== artifacts ====");
 const artifactFingerprintDictionary = {};
 const artifactExistsDictionary = {};
+const artifactPrefix = github.context.repo.owner + "_" + github.context.repo.repo;
 for (const artifact of artifacts) {
   const { filter_name, suffix } = artifact;
   const artifactName = `${filter_name}_${suffix}`;
@@ -92,6 +99,8 @@ for (const artifact of artifacts) {
   console.log(`Set output artifact_exists_${artifactName}: ${artifactExists}`);
   core.setOutput(`artifact_fingerprint_${artifactName}`, fingerprint);
   core.setOutput(`artifact_exists_${artifactName}`, artifactExists);
+
+  
   artifactFingerprintDictionary[artifactName] = fingerprint;
   artifactExistsDictionary[artifactName] = artifactExists;
 }
@@ -106,25 +115,36 @@ core.setOutput("fingerprint", artifactFingerprintJson);
 core.setOutput("exists", artifactExistsJson);
 core.setOutput("test", JSON.stringify({ a: 123, b: 234 }));
 
+const stepSummaryFile = process.env.GITHUB_STEP_SUMMARY;
+if (stepSummaryFile) {
+  fs.appendFileSync(stepSummaryFile, `\n\n## Artifacts\n\n`);
+  fs.appendFileSync(stepSummaryFile, `|Artifact| Fingerprint| Exists|\n`);
+  fs.appendFileSync(stepSummaryFile, `|---|---|---|\n`);
+}
 
-// write JSON file with the outputs
+
+// Write JSON file with the outputs to save as an artifact
+// Also write to the step summary
 const artifactOutputDirectory = path.join(__dirname, '../../../');
 const artifactOutputFile = path.join(artifactOutputDirectory, '.artifacts.json');
 const result = {};
 for (const artifact of artifacts) {
   const { filter_name, suffix } = artifact;
   const artifactName = `${filter_name}_${suffix}`;
+  const fingerprint = artifactFingerprintDictionary[artifactName];
+  const exists = artifactExistsDictionary[artifactName];
   result[artifactName] = {
-    fingerprint: artifactFingerprintDictionary[artifactName],
-    exists: artifactExistsDictionary[artifactName]
+    fingerprint,
+    exists,
   };
+  fs.appendFileSync(stepSummaryFile, `|${artifactName}| ${fingerprint}| ${exists}|\n`);
 }
 fs.writeFileSync(artifactOutputFile, JSON.stringify(result, null, 2), 'utf8');
 
 
-const artifactClient = new DefaultArtifactClient()
 
-const artifactResultKey = `artifact_summary_${github.context.repo.owner}_${github.context.repo.repo}_${github.context.runId}`; // TODO - do we need run_attempt?
+const artifactClient = new DefaultArtifactClient()
+const artifactResultKey = `artifact_summary`;
 core.setOutput("artifact_result_key", artifactResultKey);
 artifactClient.uploadArtifact(artifactResultKey, [artifactOutputFile], artifactOutputDirectory, { retentionDays: 1 });
 
