@@ -37,26 +37,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        # if the checkout script/tool is baked into the base runner image, this step can be skipped as it uses the API to get changes
-        # NOTE - that _may_ not be true for the merge group event, need to investigate
         with:
-          fetch-depth: 0 # fetch all history for all branches and tags
+          fetch-depth: 0 # fetch all history for all branches and tags (may not be needed if using PR API for changed files)
 
       - name: Load hash cache
         id: load_hash_cache
         uses: actions/cache@v4
         with:
           path: .hashes
-          # build hash key with the target branch name, commit SHA, and run ID to generate a unique cache key
-          key: hash-cache-${{ github.base_ref }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt}}
-          # use restore keys to restore the cache if the exact key is not found
-          # Use keys for
-          #  - previous run attempt for this workflow run
-          #  - this commit for the target branch
-          #  - the target branch. Note that the path filter should ensure that we only use cached hashes that are relevant to the current commit
+          # Use the commit SHA as a suffix in the cache key to ensure that the cache is unique to this commit.
+          # Use restore key without the SHA in restore keys to allow for restoring the cache from another branch.
+          # Restore key usage may retrieve a cache that doesn't fully match the current commit but the
+          # path filter should ensure that we only use cached hashes that are relevant to the current commit
+          #
+          # Docs: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#matching-a-cache-key
+          key: hash-cache-${{github.base_ref}}-${{ github.sha }}
           restore-keys: |
-            hash-cache-${{ github.base_ref }}-${{ github.sha }}-${{ github.run_id }}
-            hash-cache-${{ github.base_ref }}-${{ github.sha }}
             hash-cache-${{ github.base_ref }}
         
       - name: run path filter
