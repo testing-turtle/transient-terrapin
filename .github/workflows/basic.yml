@@ -405,26 +405,20 @@ jobs:
           path: |
             test.txt
 
-  final:
-    runs-on: ubuntu-latest
-    needs: [calculate, build-common, test-common, build, test]
-    if: ${{ always() }}
-    env:
-      EXISTS_COMMON_BUILD: ${{ needs.calculate.outputs.artifact_exists_common_build }}
-      EXISTS_COMMON_TEST: ${{ needs.calculate.outputs.artifact_exists_common_test }}
-      FINGERPRINT_COMMON_BUILD: ${{ needs.calculate.outputs.artifact_fingerprint_common_build }}
-      FINGERPRINT_COMMON_TEST: ${{ needs.calculate.outputs.artifact_fingerprint_common_test }}
-      # FILTER_SRC: ${{ needs.calculate.outputs.filter_src }}
-      # FILTER_TEST: ${{ needs.calculate.outputs.filter_test }}
-      # FILTER_COMMON: ${{ needs.calculate.outputs.filter_common }}
-      # FILTER_COMMON_SRC: ${{ needs.calculate.outputs.filter_common_src }}
-      # FILTER_COMMON_TEST: ${{ needs.calculate.outputs.filter_common_test }}
-      # HASH_SRC: ${{ needs.calculate.outputs.hash_src }}
-      # HASH_TEST: ${{ needs.calculate.outputs.hash_test }}
-      # HASH_COMMON: ${{ needs.calculate.outputs.hash_common }}
-      # HASH_COMMON_SRC: ${{ needs.calculate.outputs.hash_common_src }}
-      # HASH_COMMON_TEST: ${{ needs.calculate.outputs.hash_common_test }}
-    steps:
-      - name: Show vars
-        run: |
-          printenv | sort
+  # final:
+  #   runs-on: ubuntu-latest
+  #   needs: [calculate, build-common, test-common, build, test]
+  #   if: ${{ always() }}
+  #   env:
+  #     EXISTS_COMMON_BUILD: ${{ needs.calculate.outputs.artifact_exists_common_build }}
+  #     EXISTS_COMMON_TEST: ${{ needs.calculate.outputs.artifact_exists_common_test }}
+  #     FINGERPRINT_COMMON_BUILD: ${{ needs.calculate.outputs.artifact_fingerprint_common_build }}
+  #     FINGERPRINT_COMMON_TEST: ${{ needs.calculate.outputs.artifact_fingerprint_common_test }}
+  #   steps:
+  #     - name: Show vars
+  #       run: |
+  #         printenv | sort
+
+
+  #     # TODO - need to set run state to success or failure based on the results of the previous jobs
+  
