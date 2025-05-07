@@ -86,11 +86,13 @@ const artifacts = yaml.parse(artifactsFileContent);
 console.log("==== artifacts ====");
 const artifactFingerprintDictionary = {};
 const artifactExistsDictionary = {};
-const artifactPrefix = github.context.repo.owner + "_" + github.context.repo.repo;
+// const artifactPrefix = github.context.repo.owner + "_" + github.context.repo.repo;
+const artifactPrefix = github.context.repo.owner + "/" + github.context.repo.repo;
 for (const artifact of artifacts) {
   const { filter_name, suffix } = artifact;
   const artifactName = `${filter_name}_${suffix}`;
-  const fingerprint = `${artifactPrefix}_${artifactName}_${hashes[filter_name]}`;
+  // const fingerprint = `${artifactPrefix}_${artifactName}_${hashes[filter_name]}`;
+  const fingerprint = `${artifactPrefix}/${artifactName}_${hashes[filter_name]}`;
   const artifactExists = await testArtifactExists(fingerprint);
   console.log(`Artifact fingerprint: ${fingerprint} - exists: ${artifactExists}`);
   // Set outputs for the fingerprint for each artifact
