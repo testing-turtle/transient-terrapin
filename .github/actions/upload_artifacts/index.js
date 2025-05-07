@@ -10,14 +10,8 @@ import { execSync } from 'child_process';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const artifactKey = core.getInput('key');
-if (!artifactKey) {
-  core.setFailed('key input is required');
-}
-const artifactPaths = core.getMultilineInput('path');
-if (!artifactPaths) {
-  core.setFailed('path input is required');
-}
+const artifactKey = core.getInput('key', {required: true});
+const artifactPaths = core.getMultilineInput('path', {required: true});
 
 const azureTenantId = core.getInput('azure-tenant-id', {required: true});
 
@@ -58,6 +52,7 @@ execSync(azcopyLoginCommand, {
     AZCOPY_TENANT_ID: azureTenantId,
   },
 }, (error, stdout, stderr) => {
+  // TODO - scope for better error output here!
   console.log(`stdout: ${stdout}`);
   console.log(`stderr: ${stderr}`);
   if (error) {

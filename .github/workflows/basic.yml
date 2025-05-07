@@ -18,25 +18,20 @@ jobs:
   calculate:
     runs-on: ubuntu-latest
     outputs:
-      # filter_src: ${{ steps.filter.outputs.filter_src }}
-      # filter_test: ${{ steps.filter.outputs.filter_test }}
-      # filter_common: ${{ steps.filter.outputs.filter_common }}
-      # filter_common_src: ${{ steps.filter.outputs.filter_common_src }}
-      # filter_common_test: ${{ steps.filter.outputs.filter_common_test }}
-      # hash_src: ${{ steps.calculate_hashes.outputs.hash_src }}
-      # hash_test: ${{ steps.calculate_hashes.outputs.hash_test }}
-      # hash_common: ${{ steps.calculate_hashes.outputs.hash_common }}
-      # hash_common_src: ${{ steps.calculate_hashes.outputs.hash_common_src }}
-      # hash_common_test: ${{ steps.calculate_hashes.outputs.hash_common_test }}
       ###############################
       artifact_result_key: ${{ steps.check_artifacts.outputs.artifact_result_key }}
       ###############################
       # TODO - is there a way to expose these results without having to list each one here?
-      artifact_exists_common_build: ${{ steps.check_artifacts.outputs.artifact_exists_common_build }}
-      artifact_fingerprint_common_build: ${{ steps.check_artifacts.outputs.artifact_fingerprint_common_build }}
-      artifact_exists_common_test: ${{ steps.check_artifacts.outputs.artifact_exists_common_test }}
-      artifact_fingerprint_common_test: ${{ steps.check_artifacts.outputs.artifact_fingerprint_common_test }}
+      artifact_exists_common_src_build: ${{ steps.check_artifacts.outputs.artifact_exists_common_src_build }}
+      artifact_fingerprint_common_src_build: ${{ steps.check_artifacts.outputs.artifact_fingerprint_common_src_build }}
+      artifact_exists_common_test_test: ${{ steps.check_artifacts.outputs.artifact_exists_common_test_test }}
+      artifact_fingerprint_common_test_test: ${{ steps.check_artifacts.outputs.artifact_fingerprint_common_test_test }}
+      artifact_exists_src_build: ${{ steps.check_artifacts.outputs.artifact_exists_src_build }}
+      artifact_fingerprint_src_build: ${{ steps.check_artifacts.outputs.artifact_fingerprint_src_build }}
+      artifact_exists_test_test: ${{ steps.check_artifacts.outputs.artifact_exists_test_test }}
+      artifact_fingerprint_test_test: ${{ steps.check_artifacts.outputs.artifact_fingerprint_test_test }}
       #################
+      # JSON outputs
       artifact_exists: ${{ steps.check_artifacts.outputs.exists }}
       artifact_fingerprint: ${{ steps.check_artifacts.outputs.fingerprint }}
 
@@ -53,15 +48,16 @@ jobs:
         with:
           path: .hashes
           # build hash key with the target branch name, commit SHA, and run ID to generate a unique cache key
-          # TODO - think about the key so that main build is found in preference to other PR build
-          key: hash-cache-${{ github.ref }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt}}
+          key: hash-cache-${{ github.base_ref }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt}}
           # use restore keys to restore the cache if the exact key is not found
-          # the path filter should ensure that we only use cached hashes that are relevant to the current commit
+          # Use keys for
+          #  - previous run attempt for this workflow run
+          #  - this commit for the target branch
+          #  - the target branch. Note that the path filter should ensure that we only use cached hashes that are relevant to the current commit
           restore-keys: |
-            hash-cache-${{ github.ref }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
-            hash-cache-${{ github.ref }}-${{ github.sha }}-${{ github.run_id }}
-            hash-cache-${{ github.ref }}-${{ github.sha }}
-            hash-cache-${{ github.ref }}
+            hash-cache-${{ github.base_ref }}-${{ github.sha }}-${{ github.run_id }}
+            hash-cache-${{ github.base_ref }}-${{ github.sha }}
+            hash-cache-${{ github.base_ref }}
         
       - name: run path filter
         id: filter
@@ -133,9 +129,9 @@ jobs:
   build-common:
     runs-on: ubuntu-latest
     needs: calculate
-    if:  ${{ !failure() && needs.calculate.outputs.artifact_exists_common_build != 'true' }}
+    if:  ${{ !failure() && needs.calculate.outputs.artifact_exists_common_src_build != 'true' }}
     env:
-      FINGERPRINT_COMMON_BUILD: ${{ needs.calculate.outputs.artifact_fingerprint_common_build }}
+      FINGERPRINT_COMMON_BUILD: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}
     steps:
       - uses: actions/checkout@v4
 
@@ -145,8 +141,8 @@ jobs:
           sleep 5
           echo "common built for $FINGERPRINT_COMMON_BUILD" > build_common.txt
           echo "Pretending to build... done"
-          echo ... ${{ needs.calculate.outputs.artifact_exists}}''
-          echo ... ${{ fromJson(needs.calculate.outputs.artifact_exists).common_build }}''
+          echo '... ${{ needs.calculate.outputs.artifact_exists}}'
+          echo '... ${{ fromJson(needs.calculate.outputs.artifact_exists).common_build }}'
       
         # TODO - check out ncc or similar to avoid npm install step: https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action#commit-tag-and-push-your-action
       - name: Upload artifacts - npm install
@@ -167,24 +163,94 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_build }}
+          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}
           path: |
             build_common.txt
             README.md
 
+  build:
+    runs-on: ubuntu-latest
+    needs:
+      - calculate
+      - build-common
+    if:  ${{ (!failure() && needs.calculate.outputs.artifact_exists_src_build != 'true') || success() }}
+    env:
+      FINGERPRINT_BUILD: ${{ needs.calculate.outputs.artifact_fingerprint_src_build }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # TODO - check out ncc or similar to avoid npm install step: https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action#commit-tag-and-push-your-action
+      - name: Download artifacts - npm install
+        run: |
+          cd .github/actions/download_artifacts
+          npm install
+      - name: Azure login with federated credentials
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: download artifacts
+        uses: ./.github/actions/download_artifacts
+        with:
+          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          container: artifacts # ensure this exists
+          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}
+          path: ./common_build_output/
+
+      - name: Build
+        run: |
+          echo "Pretending to build... $FINGERPRINT_BUILD"
+          echo "build_common.txt:"
+          cat ./common_build_output/build_common.txt
+          echo "===================="
+          sleep 5
+          echo "common built for $FINGERPRINT_BUILD" > build.txt
+          echo "Inputs:" >> build.txt
+          cat  ./common_build_output/build_common.txt >> build.txt
+          echo "Pretending to build... done"
+      
+        # TODO - check out ncc or similar to avoid npm install step: https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action#commit-tag-and-push-your-action
+      - name: Upload artifacts - npm install
+        run: |
+          cd .github/actions/upload_artifacts
+          npm install
+      - name: Azure login with federated credentials
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: upload artifacts
+        uses: ./.github/actions/upload_artifacts
+        with:
+          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          container: artifacts # ensure this exists
+          key: ${{ needs.calculate.outputs.artifact_fingerprint_src_build }}
+          path: |
+            build.txt
+
   test-common:
     runs-on: ubuntu-latest
-    needs: [calculate, build-common]
-    if:  ${{ (!failure() && needs.calculate.outputs.artifact_exists_common_test != 'true') || success() }}
+    needs:
+      - calculate
+      - build-common
+    if:  ${{ (!failure() && needs.calculate.outputs.artifact_exists_common_test_test != 'true') || success() }}
     env:
-      FINGERPRINT_COMMON_TEST: ${{ needs.calculate.outputs.artifact_fingerprint_common_test }}
+      FINGERPRINT_COMMON_TEST: ${{ needs.calculate.outputs.artifact_fingerprint_common_test_test }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Test
         run: |
-          echo "fingerprint_common_build: ${{ needs.calculate.outputs.artifact_fingerprint_common_build }}"
-          echo "fingerprint_common_test: ${{ needs.calculate.outputs.artifact_fingerprint_common_test }}"
+          echo "fingerprint_common_build: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}"
+          echo "fingerprint_common_test: ${{ needs.calculate.outputs.artifact_fingerprint_common_test_test }}"
 
 
       # TODO - check out ncc or similar to avoid npm install step: https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action#commit-tag-and-push-your-action
@@ -206,20 +272,19 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_build }}
-          path: ./build_output/
-
+          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}
+          path: ./common_build_output/
       
       - name: Test
         run: |
           echo "Pretending to test... $FINGERPRINT_COMMON_TEST"
           echo "build_common.txt:"
-          cat ./build_output/build_common.txt
+          cat ./common_build_output/build_common.txt
           echo "===================="
           sleep 5
           echo "common tested for $FINGERPRINT_COMMON_TEST" > test_common.txt
           echo "Inputs:" >> test_common.txt
-          cat  ./build_output/build_common.txt >> test_common.txt
+          cat  ./common_build_output/build_common.txt >> test_common.txt
           echo "Pretending to test... done"
 
 
@@ -242,10 +307,9 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_test }}
+          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_test_test }}
           path: |
             test_common.txt
-            README.md
 
       - name: gather azcopy logs
         if: ${{ failure() }}
@@ -262,9 +326,92 @@ jobs:
              /home/runner/.azcopy/
              azcopy-logs/*
 
+
+  test:
+    runs-on: ubuntu-latest
+    needs:
+      - calculate
+      - build-common
+      - build
+    if:  ${{ (!failure() && needs.calculate.outputs.artifact_exists_test_test != 'true') || success() }}
+    env:
+      FINGERPRINT_COMMON_TEST: ${{ needs.calculate.outputs.artifact_exists_test_test }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # TODO - check out ncc or similar to avoid npm install step: https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action#commit-tag-and-push-your-action
+      - name: Download artifacts - npm install
+        run: |
+          cd .github/actions/download_artifacts
+          npm install
+      - name: Azure login with federated credentials
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: download artifacts (common_src_build)
+        uses: ./.github/actions/download_artifacts
+        with:
+          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          container: artifacts # ensure this exists
+          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}
+          path: ./common_build_output/
+      - name: download artifacts (src_build)
+        uses: ./.github/actions/download_artifacts
+        with:
+          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          container: artifacts # ensure this exists
+          key: ${{ needs.calculate.outputs.artifact_fingerprint_src_build }}
+          path: ./build_output/
+        
+      - name: Test
+        run: |
+          echo "Pretending to test... $FINGERPRINT_COMMON_TEST"
+          echo "build_common.txt:"
+          cat ./common_build_output/build_common.txt
+          echo "build.txt:"
+          cat ./build_output/build.txt
+          echo "===================="
+          sleep 5
+          echo "common tested for $FINGERPRINT_COMMON_TEST" > test.txt
+          echo "Inputs:" >> test.txt
+          cat  ./common_build_output/build_common.txt >> test.txt
+          cat  ./build_output/build.txt >> test.txt
+          echo "Pretending to test... done"
+
+      # TODO - check out ncc or similar to avoid npm install step: https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action#commit-tag-and-push-your-action
+      - name: Upload artifacts - npm install
+        run: |
+          cd .github/actions/upload_artifacts
+          npm install
+      - name: Azure login with federated credentials
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+      - name: upload artifacts
+        uses: ./.github/actions/upload_artifacts
+        with:
+          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          container: artifacts # ensure this exists
+          key: ${{ needs.calculate.outputs.artifact_fingerprint_test_test }}
+          path: |
+            test.txt
+
   final:
     runs-on: ubuntu-latest
-    needs: [calculate, build-common, test-common]
+    needs: [calculate, build-common, test-common, build, test]
     if: ${{ always() }}
     env:
       EXISTS_COMMON_BUILD: ${{ needs.calculate.outputs.artifact_exists_common_build }}

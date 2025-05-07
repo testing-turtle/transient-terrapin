@@ -53,13 +53,12 @@ execSync(azcopyLoginCommand, {
 const zipCommand = `unzip ${zipPath} -d ${artifactPath}`;
 console.log("Unzipping content...");
 execSync(zipCommand, (error, stdout, stderr) => {
+  // TODO - scope for better error output here!
+  console.log(`stdout: ${stdout}`);
+  console.log(`stderr: ${stderr}`);
   if (error) {
     console.error(`Error extracting zip file: ${error.message}`);
     core.setFailed(`Error extracting zip file: ${error.message}`);
-    return;
-  }
-  if (stderr) {
-    console.error(`Error output: ${stderr}`);
     return;
   }
   console.log(`Zip file extracted successfully: ${zipPath}`);
