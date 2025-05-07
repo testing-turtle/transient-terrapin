@@ -1,0 +1,21 @@
+{
+  "name": "temp-action",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "type": "module",
+  "dependencies": {
+    "@actions/artifact": "^2.3.2",
+    "@actions/cache": "^4.0.3",
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0",
+    "@azure/identity": "^4.9.1",
+    "@azure/storage-blob": "^12.27.0",
+    "yaml": "^2.7.1"
+  }
+}

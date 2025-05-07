@@ -1,0 +1,21 @@
+name: 'Upload artifacts'
+description: 'Upload artifacts to blob storage'
+inputs:
+  key:
+    description: Artifact key
+    required: true
+  path:
+    description: Path to the artifact(s) to upload
+    required: true
+  storage-account:
+    description: Storage account name
+    required: true
+  container:
+    description: Container name
+    required: true
+  azure-tenant-id:
+    description: Azure tenant ID
+    required: true
+runs:
+  using: 'node20'
+  main: 'index.js'

@@ -1,0 +1,22 @@
+name: 'Check for artifacts'
+description: 'Test whether a set of artifacts exist'
+inputs:
+  artifacts-file:
+    description: Path to the file defining the artifacts to test for
+    required: true
+  storage-account:
+    description: Storage account name
+    required: true
+  container:
+    description: Container name
+    required: true
+outputs:
+  fingerprint:
+    description: Artifact fingerprint JSON object keyed on filter name
+  exists:
+    description:  JSON object keyed on filter name with values indicating whether the artifact exists
+  artifact_result_key:
+    description:  Artifact key to use to retrieve the artifact containing the JSON of the artifact results
+runs:
+  using: 'node20'
+  main: 'index.js'

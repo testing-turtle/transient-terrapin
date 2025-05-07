@@ -1,0 +1,21 @@
+name: 'Download artifacts'
+description: 'Download artifacts from storage'
+inputs:
+  key:
+    description: Artifact key
+    required: true
+  path:
+    description: Path to download the artifact(s) to
+    required: true
+  storage-account:
+    description: Storage account name
+    required: true
+  container:
+    description: Container name
+    required: true
+  azure-tenant-id:
+    description: Azure tenant ID
+    required: true
+runs:
+  using: 'node20'
+  main: 'index.js'
