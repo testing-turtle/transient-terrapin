@@ -20,17 +20,6 @@ jobs:
     outputs:
       ###############################
       artifact_result_key: ${{ steps.check_artifacts.outputs.artifact_result_key }}
-      ###############################
-      # TODO - is there a way to expose these results without having to list each one here?
-      artifact_exists_common_src_build: ${{ steps.check_artifacts.outputs.artifact_exists_common_src_build }}
-      artifact_fingerprint_common_src_build: ${{ steps.check_artifacts.outputs.artifact_fingerprint_common_src_build }}
-      artifact_exists_common_test_test: ${{ steps.check_artifacts.outputs.artifact_exists_common_test_test }}
-      artifact_fingerprint_common_test_test: ${{ steps.check_artifacts.outputs.artifact_fingerprint_common_test_test }}
-      artifact_exists_src_build: ${{ steps.check_artifacts.outputs.artifact_exists_src_build }}
-      artifact_fingerprint_src_build: ${{ steps.check_artifacts.outputs.artifact_fingerprint_src_build }}
-      artifact_exists_test_test: ${{ steps.check_artifacts.outputs.artifact_exists_test_test }}
-      artifact_fingerprint_test_test: ${{ steps.check_artifacts.outputs.artifact_fingerprint_test_test }}
-      #################
       # JSON outputs
       artifact_exists: ${{ steps.check_artifacts.outputs.exists }}
       artifact_fingerprint: ${{ steps.check_artifacts.outputs.fingerprint }}
@@ -97,37 +86,12 @@ jobs:
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
 
-      - name: temp
-        run: |
-          echo "test: ${{ steps.check_artifacts.outputs.test }}"
-          echo "===================="
-          echo "test.a: ${{ steps.check_artifacts.outputs.test.a }}"
-          echo "===================="
-          echo 'fingerprint JSON: ${{ steps.check_artifacts.outputs.fingerprint }}'
-          echo "===================="
-          echo "common_build..."
-          echo 'fingerprint: ${{ fromJson(steps.check_artifacts.outputs.fingerprint).common_build }}'
-          echo 'fingerprint: ${{ fromJson(steps.check_artifacts.outputs.fingerprint)['common_build'] }}'
-          echo 'exists: ${{ fromJson(steps.check_artifacts.outputs.exists).common_build }}'
-          echo "===================="
-          echo "common_test..."
-          echo 'fingerprint: ${{ fromJson(steps.check_artifacts.outputs.fingerprint).common_test }}'
-          echo 'exists: ${{ fromJson(steps.check_artifacts.outputs.exists).common_test }}'
-          echo "===================="
-          echo 'artifact_result_key: ${{ steps.check_artifacts.outputs.artifact_result_key }}'
-          echo "===================="
-          echo 'artifact_exists_common_build: ${{ steps.check_artifacts.outputs.artifact_exists_common_build }}'
-          echo 'artifact_fingerprint_common_build: ${{ steps.check_artifacts.outputs.artifact_fingerprint_common_build }}'
-          echo 'artifact_exists_common_test: ${{ steps.check_artifacts.outputs.artifact_exists_common_test }}'
-          echo 'artifact_fingerprint_common_test: ${{ steps.check_artifacts.outputs.artifact_fingerprint_common_test }}'
-          echo "===================="
-          
   build-common:
     runs-on: ubuntu-latest
     needs: calculate
-    if:  ${{ !failure() && needs.calculate.outputs.artifact_exists_common_src_build != 'true' }}
+    if:  ${{ !failure() && !fromJson(needs.calculate.outputs.artifact_exists).common_src_build }}
     env:
-      FINGERPRINT_COMMON_BUILD: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}
+      FINGERPRINT_COMMON_BUILD: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}
     steps:
       - uses: actions/checkout@v4
 
@@ -154,12 +118,10 @@ jobs:
       - name: upload artifacts
         uses: ./.github/actions/upload_artifacts
         with:
-          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
-          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}
           path: |
             build_common.txt
             README.md
@@ -169,9 +131,9 @@ jobs:
     needs:
       - calculate
       - build-common
-    if:  ${{ (!failure() && needs.calculate.outputs.artifact_exists_src_build != 'true') || success() }}
+    if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.artifact_exists).src_build) || needs.build-common.result == 'success' }}
     env:
-      FINGERPRINT_BUILD: ${{ needs.calculate.outputs.artifact_fingerprint_src_build }}
+      FINGERPRINT_BUILD: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).src_build }}
     steps:
       - uses: actions/checkout@v4
 
@@ -189,12 +151,10 @@ jobs:
       - name: download artifacts
         uses: ./.github/actions/download_artifacts
         with:
-          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
-          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}
           path: ./common_build_output/
 
       - name: Build
@@ -223,12 +183,10 @@ jobs:
       - name: upload artifacts
         uses: ./.github/actions/upload_artifacts
         with:
-          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
-          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ needs.calculate.outputs.artifact_fingerprint_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).src_build }}
           path: |
             build.txt
 
@@ -237,16 +195,16 @@ jobs:
     needs:
       - calculate
       - build-common
-    if:  ${{ (!failure() && needs.calculate.outputs.artifact_exists_common_test_test != 'true') || success() }}
+    if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.artifact_exists).common_test_test) || needs.build-common.result == 'success' }}
     env:
-      FINGERPRINT_COMMON_TEST: ${{ needs.calculate.outputs.artifact_fingerprint_common_test_test }}
+      FINGERPRINT_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_test_test }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Test
         run: |
-          echo "fingerprint_common_build: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}"
-          echo "fingerprint_common_test: ${{ needs.calculate.outputs.artifact_fingerprint_common_test_test }}"
+          echo "fingerprint_common_build: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}"
+          echo "fingerprint_common_test: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_test_test }}"
 
 
       # TODO - check out ncc or similar to avoid npm install step: https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action#commit-tag-and-push-your-action
@@ -263,12 +221,10 @@ jobs:
       - name: download artifacts
         uses: ./.github/actions/download_artifacts
         with:
-          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
-          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}
           path: ./common_build_output/
       
       - name: Test
@@ -298,40 +254,37 @@ jobs:
       - name: upload artifacts
         uses: ./.github/actions/upload_artifacts
         with:
-          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
-          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_test_test }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_test_test }}
           path: |
             test_common.txt
 
-      - name: gather azcopy logs
-        if: ${{ failure() }}
-        run: |
-          mkdir -p azcopy-logs
-          cp /home/runner/.azcopy/*.log azcopy-logs/
+      # - name: gather azcopy logs
+      #   if: ${{ failure() }}
+      #   run: |
+      #     mkdir -p azcopy-logs
+      #     cp /home/runner/.azcopy/*.log azcopy-logs/
 
-      - name: Upload azcopy logs
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: azcopy-log
-          path: |
-             /home/runner/.azcopy/
-             azcopy-logs/*
+      # - name: Upload azcopy logs
+      #   if: ${{ failure() }}
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: azcopy-log
+      #     path: |
+      #        /home/runner/.azcopy/
+      #        azcopy-logs/*
 
 
   test:
     runs-on: ubuntu-latest
     needs:
       - calculate
-      - build-common
       - build
-    if:  ${{ (!failure() && needs.calculate.outputs.artifact_exists_test_test != 'true') || success() }}
+    if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.artifact_exists).test_test) || needs.build.result == 'success' }}
     env:
-      FINGERPRINT_COMMON_TEST: ${{ needs.calculate.outputs.artifact_exists_test_test }}
+      FINGERPRINT_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.artifact_exists).test_test }}
     steps:
       - uses: actions/checkout@v4
 
@@ -349,22 +302,18 @@ jobs:
       - name: download artifacts (common_src_build)
         uses: ./.github/actions/download_artifacts
         with:
-          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
-          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ needs.calculate.outputs.artifact_fingerprint_common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}
           path: ./common_build_output/
       - name: download artifacts (src_build)
         uses: ./.github/actions/download_artifacts
         with:
-          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
-          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ needs.calculate.outputs.artifact_fingerprint_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).src_build }}
           path: ./build_output/
         
       - name: Test
@@ -396,12 +345,10 @@ jobs:
       - name: upload artifacts
         uses: ./.github/actions/upload_artifacts
         with:
-          # azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
-          # azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ needs.calculate.outputs.artifact_fingerprint_test_test }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).test_test }}
           path: |
             test.txt
 
@@ -418,7 +365,6 @@ jobs:
   #     - name: Show vars
   #       run: |
   #         printenv | sort
-
 
   #     # TODO - need to set run state to success or failure based on the results of the previous jobs
   
