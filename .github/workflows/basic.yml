@@ -29,6 +29,10 @@ jobs:
         with:
           fetch-depth: 0 # fetch all history for all branches and tags (may not be needed if using PR API for changed files)
 
+      - name: Show event info
+        run: |
+          echo '${{ toJson(github)}}'
+
       - name: Load hash cache
         id: load_hash_cache
         uses: actions/cache@v4
