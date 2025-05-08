@@ -47,6 +47,10 @@ jobs:
           key: hash-cache-${{github.base_ref}}-${{ github.sha }}
           restore-keys: |
             hash-cache-${{ github.base_ref }}
+
+      - name: temp
+        run: |
+          echo '${{ toJson(steps.load_hash_cache.outputs) }}'
         
       - name: run path filter
         id: filter
@@ -69,6 +73,8 @@ jobs:
         env:
           FILTER_FILE: ./scripts/filter-example.yaml
         run: |
+            echo "## Hashes" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             python ./scripts/calculate_hashes.py
 
       # TODO - check out ncc or similar to avoid npm install step: https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action#commit-tag-and-push-your-action

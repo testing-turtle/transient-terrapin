@@ -187,6 +187,13 @@ def set_github_env(name: str, value: str):
         f.write(f"{name}={value}\n")
     # print(f"OUTPUT:{name}={value}", flush=True)
 
+def write_to_step_summary(message: str):
+    if os.getenv("GITHUB_STEP_SUMMARY") is None:
+        print("GITHUB_STEP_SUMMARY environment variable is not set.", flush=True)
+        sys.exit(1)
+
+    with open(os.getenv("GITHUB_STEP_SUMMARY"), "a") as f:
+        f.write(f"{message}\n")
 
 if __name__ == "__main__":
     if not os.path.exists(".hashes"):
@@ -204,6 +211,8 @@ if __name__ == "__main__":
     print(
         f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
 
+    write_to_step_summary("## Hashes\n\n|Filter|Hash| Cached|\n|---|---|---|")
+
     for filter in filters:
         filter_var_name = f"FILTER_{filter.name.upper()}"
         filter_var_value = os.getenv(filter_var_name, None)
@@ -218,6 +227,7 @@ if __name__ == "__main__":
                 set_github_output(f"hash_{filter.name}", hash)
                 set_github_env(f"hash_{filter.name}", hash)
                 print(f"Filter {filter.name} - using cached hash '{hash}'", flush=True)
+                write_to_step_summary(f"|{filter.name}|{hash}|yes|")
                 continue
             else:
                 update_filter = True
@@ -235,4 +245,4 @@ if __name__ == "__main__":
         duration = end_time - start_time
         print(
             f"Filter {filter.name} - hash: '{hash}' - took {duration:.3f} seconds", flush=True)
-        
+        write_to_step_summary(f"|{filter.name}|{hash}|no|")
