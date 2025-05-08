@@ -35,7 +35,8 @@ jobs:
 
       - name: Load hash cache
         id: load_hash_cache
-        uses: actions/cache@v4
+        # uses: actions/cache@v4
+        uses: stuartleeks/actions-cache@add-restore-outputs-to-core
         with:
           path: .hashes
           # Use the commit SHA as a suffix in the cache key to ensure that the cache is unique to this commit.
