@@ -211,7 +211,7 @@ if __name__ == "__main__":
     print(
         f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
 
-    write_to_step_summary("## Hashes\n\n|Filter|Hash| Cached|\n|---|---|---|")
+    write_to_step_summary("\n|Filter|Hash| Cached|\n|---|---|---|")
 
     for filter in filters:
         filter_var_name = f"FILTER_{filter.name.upper()}"
