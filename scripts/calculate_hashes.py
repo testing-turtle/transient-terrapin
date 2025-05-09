@@ -100,6 +100,9 @@ class Filter:
         os.makedirs(".hash-debug", exist_ok=True)
         with open(os.path.join(".hash-debug", f"{self.name}.txt"), "w") as debug_file:
 
+            print(f"::group::Filter - {self.name}", flush=True) 
+
+
             # iterate the files in the file_list and calculate the sha1 hash
             hash = hashlib.sha1()
 
@@ -110,6 +113,7 @@ class Filter:
                         # Add the filename to the hash
                         hash.update(file.encode("utf-8"))
                         debug_file.write(f"{file}\n")
+                        print(file=file, flush=True)
 
                         with open(file, "rb") as f:
                             # Read the file in chunks to handle large files
@@ -119,6 +123,8 @@ class Filter:
 
             hash_result = hash.hexdigest()
             debug_file.write(f"\nHash: {hash_result}\n")
+            print("::endgroup::", flush=True)
+            print(f"Hash (${self.name}): {hash_result}", flush=True)
             return hash_result
 
 
