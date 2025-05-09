@@ -36,6 +36,7 @@ jobs:
       - name: Load hash cache
         id: load_hash_cache
         uses: actions/cache@v4
+        # uses: stuartleeks/actions-cache@add-restore-outputs-to-core
         with:
           path: .hashes
           # Use the commit SHA as a suffix in the cache key to ensure that the cache is unique to this commit.
@@ -47,6 +48,10 @@ jobs:
           key: hash-cache-${{github.base_ref}}-${{ github.sha }}
           restore-keys: |
             hash-cache-${{ github.base_ref }}
+
+      - name: examine cache step output
+        run: |
+          echo '${{ toJson(steps.load_hash_cache.outputs) }}'
         
       - name: run path filter
         id: filter
@@ -69,6 +74,8 @@ jobs:
         env:
           FILTER_FILE: ./scripts/filter-example.yaml
         run: |
+            echo "## Hashes" >> $GITHUB_STEP_SUMMARY
+            echo "Cache-hit value (true => match on key, false => found restore-key match, empty => cache miss): '${{ steps.load_hash_cache.outputs.cache-hit }}'" >> $GITHUB_STEP_SUMMARY
             python ./scripts/calculate_hashes.py
 
       # TODO - check out ncc or similar to avoid npm install step: https://docs.github.com/en/actions/sharing-automations/creating-actions/creating-a-javascript-action#commit-tag-and-push-your-action
