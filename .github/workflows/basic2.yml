@@ -11,7 +11,7 @@ on:
   merge_group:
 
 jobs:
-  build:
+  build-2:
     runs-on: [self-hosted, ManagedDevOps.Pool=tt-pool2]
 
     steps:
