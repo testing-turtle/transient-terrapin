@@ -33,6 +33,36 @@ jobs:
         run: |
           echo '${{ toJson(github)}}'
 
+      - name: Get ref for cache
+        id: get_ref
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            console.log(JSON.stringify(context, null, 2))
+
+            // TODO - tidy this up, make more robust (e.g. parsing ref)
+
+            const eventName = context.eventName;
+            switch(eventName) {
+              case 'pull_request':
+                console.log("PR event");
+                console.log(`Using ref: ${context.payload.pull_request.base.ref}`);
+                return context.payload.pull_request.base.ref
+              
+              case "push":
+                return context.payload.ref.split("/")[2];
+
+              case "merge_group":
+                return context.payload.merge_group.base_ref.split("/")[2];
+                break;
+
+              default:
+                core.setFailed(`Unhandled event type: ${eventName}`)
+                break;
+            }
+
+
       - name: Load hash cache
         id: load_hash_cache
         uses: actions/cache@v4
@@ -44,9 +74,9 @@ jobs:
           # path filter should ensure that we only use cached hashes that are relevant to the current commit
           #
           # Docs: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#matching-a-cache-key
-          key: hash-cache-${{github.base_ref}}-${{ github.sha }}
+          key: hash-cache-${{ steps.get_ref.outputs.result }}-${{ github.sha }}
           restore-keys: |
-            hash-cache-${{ github.base_ref }}
+            hash-cache-${{ steps.get_ref.outputs.result }}
         
       - name: run path filter
         id: filter
