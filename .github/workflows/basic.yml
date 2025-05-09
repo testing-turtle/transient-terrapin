@@ -51,10 +51,10 @@ jobs:
                 return context.payload.pull_request.base.ref
               
               case "push":
-                return context.event.ref.split("/")[2];
+                return context.payload.ref.split("/")[2];
 
               case "merge_group":
-                return context.event.merge_group.base_ref.split("/")[2];
+                return context.payload.merge_group.base_ref.split("/")[2];
                 break;
 
               default:
