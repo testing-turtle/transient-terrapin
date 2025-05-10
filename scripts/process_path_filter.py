@@ -63,6 +63,7 @@ class Filter:
         """
         for path_filter in self.files:
             if path_filter.regex.match(file):
+                print(f"Filter {self.name} matched {file} on {path_filter.expression}", flush=True)
                 return True
         return False
 
@@ -80,10 +81,17 @@ class Filter:
             if (
                 allFilesMatchAnySkip
             ):  # only check for skip if we haven't already had a non-match
-                for path_filter in self.skip_if.all_file_match_any:
-                    if not path_filter.regex.match(file):
+                for skip_filter in self.skip_if.all_file_match_any:
+                    is_skip_match = skip_filter.regex.match(file)
+                    # print(f"Filter {self.name} skip-if match {file} on {skip_filter.expression}: {is_skip_match}", flush=True)
+                    if not is_skip_match:
+                        print(
+                            f"Filter {self.name} skip-if failed to match {file} on {skip_filter.expression}",
+                            flush=True,
+                        )
                         allFilesMatchAnySkip = False
                         break
+        print(f"Filter {self.name} match: {match}, allFilesMatchAnySkip: {allFilesMatchAnySkip}", flush=True)
         result = match and not allFilesMatchAnySkip
         return result
 
@@ -240,7 +248,7 @@ def set_github_env(name: str, value: str):
 
     with open(os.getenv("GITHUB_ENV"), "a") as f:
         f.write(f"{name}={value}\n")
-    print(f"OUTPUT:{name}={value}", flush=True)
+    # print(f"OUTPUT:{name}={value}", flush=True)
 
 
 if __name__ == "__main__":

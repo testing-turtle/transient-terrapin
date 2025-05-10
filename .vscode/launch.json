@@ -11,8 +11,9 @@
 			"program": "${workspaceFolder}/scripts/process_path_filter.py",
 			"console": "integratedTerminal",
 			"env": {
-				"FILTER_FILE": "${workspaceFolder}/scripts/test-filter.yaml",
-				"GITHUB_OUTPUT": "/tmp/github_output.txt"
+				"FILTER_FILE": "${workspaceFolder}/scripts/filter-example.yaml",
+				"GITHUB_OUTPUT": "/tmp/github_output.txt",
+				"GITHUB_ENV": "/tmp/github_env.txt"
 			}
 		}
 	]
