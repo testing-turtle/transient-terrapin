@@ -76,8 +76,7 @@ class Filter:
             if not match:  # only check for a match if we haven't found one yet
                 if self.is_match_for_file(file):
                     match = True
-                    break
-
+            
             if (
                 allFilesMatchAnySkip
             ):  # only check for skip if we haven't already had a non-match
