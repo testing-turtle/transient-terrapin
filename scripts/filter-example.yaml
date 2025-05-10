@@ -21,7 +21,6 @@
       - \.foo$
 - name: src
   files:
-    - ^dummy_files/common/src
     - ^dummy_files/src
   skip-if:
     all-files-match-any:
@@ -29,7 +28,6 @@
       - \.foo$
 - name: test
   files:
-    - ^dummy_files/common/test
     - ^dummy_files/test
   skip-if:
     all-files-match-any:
