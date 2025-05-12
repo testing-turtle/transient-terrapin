@@ -90,7 +90,7 @@ jobs:
         run: python ./scripts/process_path_filter.py
         env:
           # FILTER_FILE: determines which filter file to process
-          FILTER_FILE: ./scripts/filter-example.yaml
+          FILTER_FILE: ./scripts/example-filter.yaml
           # GITHUB_TOKEN: used to authenticate with the GitHub API to get the list of changed files
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -102,7 +102,7 @@ jobs:
       - name: Calculate hashes
         id: calculate_hashes
         env:
-          FILTER_FILE: ./scripts/filter-example.yaml
+          FILTER_FILE: ./scripts/example-filter.yaml
         run: |
             echo "## Hashes" >> $GITHUB_STEP_SUMMARY
             echo "Cache-hit value (true => match on key, false => found restore-key match, empty => cache miss): '${{ steps.load_hash_cache.outputs.cache-hit }}'" >> $GITHUB_STEP_SUMMARY
