@@ -88,12 +88,10 @@ const artifacts = yaml.parse(artifactsFileContent);
 console.log("==== artifacts ====");
 const artifactFingerprintDictionary = {};
 const artifactExistsDictionary = {};
-// const artifactPrefix = github.context.repo.owner + "_" + github.context.repo.repo;
 const artifactPrefix = github.context.repo.owner + "/" + github.context.repo.repo;
 for (const artifact of artifacts) {
   const { filter_name, suffix } = artifact;
   const artifactName = `${filter_name}_${suffix}`;
-  // const fingerprint = `${artifactPrefix}_${artifactName}_${hashes[filter_name]}`;
   const fingerprint = `${artifactPrefix}/${artifactName}_${hashes[filter_name]}`;
   const artifactExists = await testArtifactExists(fingerprint);
   console.log(`Artifact fingerprint: ${fingerprint} - exists: ${artifactExists}`);
@@ -146,6 +144,8 @@ for (const artifact of artifacts) {
 fs.writeFileSync(artifactOutputFile, JSON.stringify(result, null, 2), 'utf8');
 
 
+fs.appendFileSync(stepSummaryFile, `\n<details>\n<summary>exists JSON</summary>\n\`\`\`json\n${artifactExistsJson}\n\`\`\`\n</details>\n`)
+fs.appendFileSync(stepSummaryFile, `\n<details>\n<summary>fingerprint JSON</summary>\n\`\`\`json\n${artifactFingerprintJson}\n\`\`\`\n</details>\n`)
 
 const artifactClient = new DefaultArtifactClient()
 const artifactResultKey = `artifact_summary`;
