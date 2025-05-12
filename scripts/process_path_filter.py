@@ -173,7 +173,7 @@ def load_pr_changes() -> list[str]:
         "X-GitHub-Api-Version": "2022-11-28",
     }
     try:
-        # TODO - handle paging
+        # TODO - handle paging!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         resp = requests.get(url, headers=headers)
         resp.raise_for_status()
         files = resp.json()
@@ -247,7 +247,14 @@ def set_github_env(name: str, value: str):
 
     with open(os.getenv("GITHUB_ENV"), "a") as f:
         f.write(f"{name}={value}\n")
-    # print(f"OUTPUT:{name}={value}", flush=True)
+
+def append_to_step_summary(value: str):
+    if os.getenv("GITHUB_STEP_SUMMARY") is None:
+        print("GITHUB_STEP_SUMMARY environment variable is not set.", flush=True)
+        sys.exit(1)
+
+    with open(os.getenv("GITHUB_STEP_SUMMARY"), "a") as f:
+        f.write(f"{value}\n")
 
 
 if __name__ == "__main__":
@@ -264,27 +271,35 @@ if __name__ == "__main__":
     filters = load_filter_file(filter_file)
     print(f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
 
-    file_change_list = load_pr_changes() or load_git_changes(compare_to=BASE_BRANCH) or []
+    file_change_list = load_pr_changes() 
+    got_changes_from_git = False
+    if file_change_list is None:
+        file_change_list = load_git_changes(compare_to=BASE_BRANCH)
+        got_changes_from_git = True
+
+    append_to_step_summary("## Filter results")
+
     if len(file_change_list) >10:
         print(f"Changed files (partial list): {file_change_list[0:10]}", flush=True)
+        append_to_step_summary(f"Changed files (partial list): {file_change_list[0:10].join(', ')}, ...")
     else:
-        print(f"Changed files: {file_change_list[0:10]}", flush=True)
+        append_to_step_summary(f"Changed files (partial list): {file_change_list}")
+        print(f"Changed files: {file_change_list}", flush=True)
 
+    ############################### WORKING HERE ######################################
+    # TODO - add to step summary - count of files, list of filter results
+    ############################### WORKING HERE ######################################
+
+
+    append_to_step_summary("|Filter|Result|")
+    append_to_step_summary("|---|---|")
     for filter in filters:
         start_time = time.time()
         filter_matches = filter.is_match(file_change_list)
         set_github_output(f"filter_{filter.name}", str(filter_matches).lower())
         set_github_env(f"FILTER_{filter.name.upper()}", str(filter_matches).lower())
+        append_to_step_summary(f"|{filter.name}|{str(filter.is_match(file_change_list)).lower()}|")
 
         end_time = time.time()
         duration = end_time - start_time
         print(f"Filter {filter.name} took {duration:.3f} seconds to process", flush=True)
-
-
-
-        # start_time = time.time()
-        # fingerprint = filter.calculate_fingerprint(recursive_file_list("."))
-        # set_github_output(f"{filter.name}_fingerprint", fingerprint)
-        # end_time = time.time()
-        # duration = end_time - start_time
-        # # print(f"Filter {filter.name} fingerprint calculation took {duration:.3f} seconds", flush=True)
