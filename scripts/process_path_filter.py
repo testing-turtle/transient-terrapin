@@ -271,7 +271,7 @@ if __name__ == "__main__":
     filters = load_filter_file(filter_file)
     print(f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
 
-    file_change_list = load_pr_changes() 
+    file_change_list = load_pr_changes()
     got_changes_from_git = False
     if file_change_list is None:
         file_change_list = load_git_changes(compare_to=BASE_BRANCH)
@@ -283,13 +283,8 @@ if __name__ == "__main__":
         print(f"Changed files (partial list): {file_change_list[0:10]}", flush=True)
         append_to_step_summary(f"Changed files (partial list): {file_change_list[0:10].join(', ')}, ...")
     else:
-        append_to_step_summary(f"Changed files (partial list): {file_change_list}")
+        append_to_step_summary(f"Changed files: {file_change_list}")
         print(f"Changed files: {file_change_list}", flush=True)
-
-    ############################### WORKING HERE ######################################
-    # TODO - add to step summary - count of files, list of filter results
-    ############################### WORKING HERE ######################################
-
 
     append_to_step_summary("|Filter|Result|")
     append_to_step_summary("|---|---|")
