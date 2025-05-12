@@ -52,7 +52,8 @@ const containerClient = blobClient.getContainerClient(containerName)
 function getHashes() {
   const hashes = {};
   // List files in .hashes directory and load each file
-  const dirPath = path.join(__dirname, '../../../.hashes');
+// TODO - work out better way to handle the relative path
+  const dirPath = path.join(__dirname, '../../../../.hashes');
   const files = fs.readdirSync(dirPath);
   files.forEach(file => {
     const filePath = path.join(dirPath, file);
@@ -77,7 +78,8 @@ console.log(hashes);
 
 
 // Load the artifacts file and parse the YAML
-const artifactsFilePath = path.join(__dirname, '../../../', artifactsFile);
+// TODO - work out better way to handle the relative path
+const artifactsFilePath = path.join(__dirname, '../../../../', artifactsFile);
 const artifactsFileContent = fs.readFileSync(artifactsFilePath, 'utf8');
 const artifacts = yaml.parse(artifactsFileContent);
 

@@ -19,4 +19,4 @@ outputs:
     description:  Artifact key to use to retrieve the artifact containing the JSON of the artifact results
 runs:
   using: 'node20'
-  main: 'index.js'
+  main: 'dist/index.js'
