@@ -13,8 +13,11 @@
 			"env": {
 				"FILTER_FILE": "${workspaceFolder}/scripts/filter-example.yaml",
 				"GITHUB_OUTPUT": "/tmp/github_output.txt",
-				"GITHUB_ENV": "/tmp/github_env.txt"
+				"GITHUB_ENV": "/tmp/github_env.txt",
+				"GITHUB_STEP_SUMMARY": "/tmp/github_step_summary.txt"
 			}
 		}
+
+		
 	]
 }
