@@ -33,7 +33,7 @@ const containerName = core.getInput('container', {required: true});
 //
 // The action checks if the artifacts exist in the GitHub repository and sets outputs for each artifact
 // The outputs are:
-// - artifact_fingerprint_<filter_name>: the fingerprint of the artifact. This should be used to fetch/store the artifact
+// - artifact_key_<filter_name>: the key of the artifact. This should be used to fetch/store the artifact
 // - artifact_exists_<filter_name>: true if the artifact exists, false otherwise
 //
 
@@ -86,41 +86,41 @@ const artifacts = yaml.parse(artifactsFileContent);
 
 
 console.log("==== artifacts ====");
-const artifactFingerprintDictionary = {};
+const artifactKeyDictionary = {};
 const artifactExistsDictionary = {};
 const artifactPrefix = github.context.repo.owner + "/" + github.context.repo.repo;
 for (const artifact of artifacts) {
   const { filter_name, suffix } = artifact;
   const artifactName = `${filter_name}_${suffix}`;
-  const fingerprint = `${artifactPrefix}/${artifactName}_${hashes[filter_name]}`;
-  const artifactExists = await testArtifactExists(fingerprint);
-  console.log(`Artifact fingerprint: ${fingerprint} - exists: ${artifactExists}`);
-  // Set outputs for the fingerprint for each artifact
+  const key = `${artifactPrefix}/${artifactName}_${hashes[filter_name]}`;
+  const artifactExists = await testArtifactExists(key);
+  console.log(`Artifact key: ${key} - exists: ${artifactExists}`);
+  // Set outputs for the key for each artifact
   // and whether the artifact exists
-  console.log(`Set output artifact_fingerprint_${artifactName}: ${fingerprint}`);
+  console.log(`Set output artifact_key_${artifactName}: ${key}`);
   console.log(`Set output artifact_exists_${artifactName}: ${artifactExists}`);
-  core.setOutput(`artifact_fingerprint_${artifactName}`, fingerprint);
+  core.setOutput(`artifact_key_${artifactName}`, key);
   core.setOutput(`artifact_exists_${artifactName}`, artifactExists);
 
   
-  artifactFingerprintDictionary[artifactName] = fingerprint;
+  artifactKeyDictionary[artifactName] = key;
   artifactExistsDictionary[artifactName] = artifactExists;
 }
 
 console.log("==== outputs ====");
-const artifactFingerprintJson = JSON.stringify(artifactFingerprintDictionary);
+const artifactKeyJson = JSON.stringify(artifactKeyDictionary);
 const artifactExistsJson = JSON.stringify(artifactExistsDictionary);
-console.log("artifact_fingerprint", artifactFingerprintJson);
+console.log("artifact_key", artifactKeyJson);
 console.log("artifact_exists", artifactExistsJson);
 
-core.setOutput("fingerprint", artifactFingerprintJson);
+core.setOutput("key", artifactKeyJson);
 core.setOutput("exists", artifactExistsJson);
 core.setOutput("test", JSON.stringify({ a: 123, b: 234 }));
 
 const stepSummaryFile = process.env.GITHUB_STEP_SUMMARY;
 if (stepSummaryFile) {
   fs.appendFileSync(stepSummaryFile, `\n\n## Artifacts\n\n`);
-  fs.appendFileSync(stepSummaryFile, `|Artifact| Fingerprint| Exists|\n`);
+  fs.appendFileSync(stepSummaryFile, `|Artifact| Key| Exists|\n`);
   fs.appendFileSync(stepSummaryFile, `|---|---|---|\n`);
 }
 
@@ -133,19 +133,19 @@ const result = {};
 for (const artifact of artifacts) {
   const { filter_name, suffix } = artifact;
   const artifactName = `${filter_name}_${suffix}`;
-  const fingerprint = artifactFingerprintDictionary[artifactName];
+  const key = artifactKeyDictionary[artifactName];
   const exists = artifactExistsDictionary[artifactName];
   result[artifactName] = {
-    fingerprint,
+    key,
     exists,
   };
-  fs.appendFileSync(stepSummaryFile, `|${artifactName}| ${fingerprint}| ${exists}|\n`);
+  fs.appendFileSync(stepSummaryFile, `|${artifactName}| ${key}| ${exists}|\n`);
 }
 fs.writeFileSync(artifactOutputFile, JSON.stringify(result, null, 2), 'utf8');
 
 
 fs.appendFileSync(stepSummaryFile, `\n<details>\n<summary>exists JSON</summary>\n\`\`\`json\n${artifactExistsJson}\n\`\`\`\n</details>\n`)
-fs.appendFileSync(stepSummaryFile, `\n<details>\n<summary>fingerprint JSON</summary>\n\`\`\`json\n${artifactFingerprintJson}\n\`\`\`\n</details>\n`)
+fs.appendFileSync(stepSummaryFile, `\n<details>\n<summary>key JSON</summary>\n\`\`\`json\n${artifactKeyJson}\n\`\`\`\n</details>\n`)
 
 const artifactClient = new DefaultArtifactClient()
 const artifactResultKey = `artifact_summary`;

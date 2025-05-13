@@ -11,8 +11,8 @@ inputs:
     description: Container name
     required: true
 outputs:
-  fingerprint:
-    description: Artifact fingerprint JSON object keyed on filter name
+  key:
+    description: Artifact key JSON object keyed on filter name
   exists:
     description:  JSON object keyed on filter name with values indicating whether the artifact exists
   artifact_result_key:

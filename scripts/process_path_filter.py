@@ -94,11 +94,11 @@ class Filter:
         result = match and not allFilesMatchAnySkip
         return result
 
-    def calculate_fingerprint(self, files: Iterable[str]) -> str:
+    def calculate_hash(self, files: Iterable[str]) -> str:
         """
-        Calculate the fingerprint based on the files that match the filter
+        Calculate the hash based on the files that match the filter
 
-        NOTE: to get a stable fingerprint, ensure a consistent order of files
+        NOTE: to get a stable hash, ensure a consistent order of files
         """
 
         # iterate the files in the file_list and calculate the sha1 hash

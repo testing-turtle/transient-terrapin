@@ -22,7 +22,7 @@ jobs:
       artifact_result_key: ${{ steps.check_artifacts.outputs.artifact_result_key }}
       # JSON outputs
       artifact_exists: ${{ steps.check_artifacts.outputs.exists }}
-      artifact_fingerprint: ${{ steps.check_artifacts.outputs.fingerprint }}
+      artifact_key: ${{ steps.check_artifacts.outputs.key }}
 
     steps:
       - uses: actions/checkout@v4
@@ -123,15 +123,15 @@ jobs:
     needs: calculate
     if:  ${{ !failure() && !fromJson(needs.calculate.outputs.artifact_exists).common_src_build }}
     env:
-      FINGERPRINT_COMMON_BUILD: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}
+      KEY_COMMON_BUILD: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Build
         run: |
-          echo "Pretending to build... $FINGERPRINT_COMMON_BUILD"
+          echo "Pretending to build... $KEY_COMMON_BUILD"
           sleep 5
-          echo "common built for $FINGERPRINT_COMMON_BUILD" > build_common.txt
+          echo "common built for $KEY_COMMON_BUILD" > build_common.txt
           echo "Pretending to build... done"
           echo '... ${{ needs.calculate.outputs.artifact_exists}}'
           echo '... ${{ fromJson(needs.calculate.outputs.artifact_exists).common_build }}'
@@ -149,7 +149,7 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}
           path: |
             build_common.txt
             README.md
@@ -161,7 +161,7 @@ jobs:
       - build-common
     if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.artifact_exists).src_build) || needs.build-common.result == 'success' }}
     env:
-      FINGERPRINT_BUILD: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).src_build }}
+      KEY_BUILD: ${{ fromJson(needs.calculate.outputs.artifact_key).src_build }}
     steps:
       - uses: actions/checkout@v4
 
@@ -178,17 +178,17 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}
           path: ./common_build_output/
 
       - name: Build
         run: |
-          echo "Pretending to build... $FINGERPRINT_BUILD"
+          echo "Pretending to build... $KEY_BUILD"
           echo "build_common.txt:"
           cat ./common_build_output/build_common.txt
           echo "===================="
           sleep 5
-          echo "common built for $FINGERPRINT_BUILD" > build.txt
+          echo "common built for $KEY_BUILD" > build.txt
           echo "Inputs:" >> build.txt
           cat  ./common_build_output/build_common.txt >> build.txt
           echo "Pretending to build... done"
@@ -199,7 +199,7 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_key).src_build }}
           path: |
             build.txt
 
@@ -210,14 +210,14 @@ jobs:
       - build-common
     if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.artifact_exists).common_test_test) || needs.build-common.result == 'success' }}
     env:
-      FINGERPRINT_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_test_test }}
+      KEY_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.artifact_key).common_test_test }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Test
         run: |
-          echo "fingerprint_common_build: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}"
-          echo "fingerprint_common_test: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_test_test }}"
+          echo "key_common_build: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}"
+          echo "key_common_test: ${{ fromJson(needs.calculate.outputs.artifact_key).common_test_test }}"
 
 
       - name: Azure login with federated credentials
@@ -232,17 +232,17 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}
           path: ./common_build_output/
       
       - name: Test
         run: |
-          echo "Pretending to test... $FINGERPRINT_COMMON_TEST"
+          echo "Pretending to test... $KEY_COMMON_TEST"
           echo "build_common.txt:"
           cat ./common_build_output/build_common.txt
           echo "===================="
           sleep 5
-          echo "common tested for $FINGERPRINT_COMMON_TEST" > test_common.txt
+          echo "common tested for $KEY_COMMON_TEST" > test_common.txt
           echo "Inputs:" >> test_common.txt
           cat  ./common_build_output/build_common.txt >> test_common.txt
           echo "Pretending to test... done"
@@ -253,7 +253,7 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_test_test }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_key).common_test_test }}
           path: |
             test_common.txt
 
@@ -264,7 +264,7 @@ jobs:
       - build
     if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.artifact_exists).test_test) || needs.build.result == 'success' }}
     env:
-      FINGERPRINT_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.artifact_exists).test_test }}
+      KEY_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.artifact_exists).test_test }}
     steps:
       - uses: actions/checkout@v4
 
@@ -282,7 +282,7 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}
           path: ./common_build_output/
 
       - name: download artifacts (src_build)
@@ -291,19 +291,19 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_key).src_build }}
           path: ./build_output/
         
       - name: Test
         run: |
-          echo "Pretending to test... $FINGERPRINT_COMMON_TEST"
+          echo "Pretending to test... $KEY_COMMON_TEST"
           echo "build_common.txt:"
           cat ./common_build_output/build_common.txt
           echo "build.txt:"
           cat ./build_output/build.txt
           echo "===================="
           sleep 5
-          echo "common tested for $FINGERPRINT_COMMON_TEST" > test.txt
+          echo "common tested for $KEY_COMMON_TEST" > test.txt
           echo "Inputs:" >> test.txt
           cat  ./common_build_output/build_common.txt >> test.txt
           cat  ./build_output/build.txt >> test.txt
@@ -315,6 +315,6 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_fingerprint).test_test }}
+          key: ${{ fromJson(needs.calculate.outputs.artifact_key).test_test }}
           path: |
             test.txt
