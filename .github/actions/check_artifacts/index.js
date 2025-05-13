@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 import { DefaultArtifactClient, ArtifactNotFoundError } from '@actions/artifact';
 import { restoreCache } from '@actions/cache'
 
-import {DefaultAzureCredential} from '@azure/identity';
+import { DefaultAzureCredential } from '@azure/identity';
 import { BlobServiceClient, StorageSharedKeyCredential } from "@azure/storage-blob";
 
 
@@ -20,8 +20,8 @@ if (!artifactsFile) {
 }
 console.log(`Artifacts file: ${artifactsFile}`);
 
-const storageAccountName = core.getInput('storage-account', {required: true});
-const containerName = core.getInput('container', {required: true});
+const storageAccountName = core.getInput('storage-account', { required: true });
+const containerName = core.getInput('container', { required: true });
 
 //
 // This action reads a YAML file containing a list of artifacts.
@@ -41,7 +41,7 @@ const containerName = core.getInput('container', {required: true});
 //       since GH artifacts are scoped to a workflow run.
 //       The list of artifact keys and hashs _is_ stored as a workflow artifact
 
-const azCredential = new  DefaultAzureCredential();
+const azCredential = new DefaultAzureCredential();
 const blobClient = new BlobServiceClient(
   `https://${storageAccountName}.blob.core.windows.net`,
   azCredential
@@ -52,7 +52,7 @@ const containerClient = blobClient.getContainerClient(containerName)
 function getHashes() {
   const hashes = {};
   // List files in .hashes directory and load each file
-// TODO - work out better way to handle the relative path
+  // TODO - work out better way to handle the relative path
   const dirPath = path.join(__dirname, '../../../../.hashes');
   const files = fs.readdirSync(dirPath);
   files.forEach(file => {
@@ -102,14 +102,16 @@ for (const artifact of artifacts) {
   core.setOutput(`artifact_key_${artifactName}`, key);
   core.setOutput(`artifact_exists_${artifactName}`, artifactExists);
 
-  
+
   artifactKeyDictionary[artifactName] = key;
   artifactExistsDictionary[artifactName] = artifactExists;
 }
 
 console.log("==== outputs ====");
 const artifactKeyJson = JSON.stringify(artifactKeyDictionary);
+const artifactKeyJsonMultiline = JSON.stringify(artifactKeyDictionary, null, 2);
 const artifactExistsJson = JSON.stringify(artifactExistsDictionary);
+const artifactExistsJsonMultiline = JSON.stringify(artifactExistsDictionary, null, 2);
 console.log("artifact_key", artifactKeyJson);
 console.log("artifact_exists", artifactExistsJson);
 
@@ -144,8 +146,12 @@ for (const artifact of artifacts) {
 fs.writeFileSync(artifactOutputFile, JSON.stringify(result, null, 2), 'utf8');
 
 
-fs.appendFileSync(stepSummaryFile, `\n<details>\n<summary>exists JSON</summary>\n\`\`\`json\n${artifactExistsJson}\n\`\`\`\n</details>\n`)
-fs.appendFileSync(stepSummaryFile, `\n<details>\n<summary>key JSON</summary>\n\`\`\`json\n${artifactKeyJson}\n\`\`\`\n</details>\n`)
+fs.appendFileSync(
+  stepSummaryFile,
+  `\n<details>\n<summary>exists JSON</summary>\n\n\`\`\`json\n${artifactExistsJsonMultiline}\n\n\`\`\`\n</details>\n`);
+fs.appendFileSync(
+  stepSummaryFile, 
+  `\n<details>\n<summary>key JSON</summary>\n\n\`\`\`json\n${artifactKeyJsonMultiline}\n\n\`\`\`\n</details>\n`);
 
 const artifactClient = new DefaultArtifactClient()
 const artifactResultKey = `artifact_summary`;
