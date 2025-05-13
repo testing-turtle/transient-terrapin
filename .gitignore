@@ -4,3 +4,4 @@ __pycache__
 .hashes
 
 node_modules
+build

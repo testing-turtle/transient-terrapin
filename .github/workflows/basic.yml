@@ -18,11 +18,7 @@ jobs:
   calculate:
     runs-on: ubuntu-latest
     outputs:
-      ###############################
-      artifact_result_key: ${{ steps.check_artifacts.outputs.artifact_result_key }}
-      # JSON outputs
-      artifact_exists: ${{ steps.check_artifacts.outputs.exists }}
-      artifact_key: ${{ steps.check_artifacts.outputs.key }}
+      jobs: ${{ steps.check_artifacts.outputs.jobs }}
 
     steps:
       - uses: actions/checkout@v4
@@ -83,26 +79,6 @@ jobs:
         run: |
           echo '${{ toJson(steps.load_hash_cache.outputs) }}'
         
-      - name: run path filter
-        id: filter
-        # Run through the filters in the specified file.
-        # For each filter, evaluate the condition and output to step outputs and GITHUB_ENV
-        run: python ./scripts/process_path_filter.py
-        env:
-          # FILTER_FILE: determines which filter file to process
-          FILTER_FILE: ./scripts/example-filter.yaml
-          # GITHUB_TOKEN: used to authenticate with the GitHub API to get the list of changed files
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Calculate hashes
-        id: calculate_hashes
-        env:
-          FILTER_FILE: ./scripts/example-filter.yaml
-        run: |
-            echo "## Hashes" >> $GITHUB_STEP_SUMMARY
-            echo "Cache-hit value (true => match on key, false => found restore-key match, empty => cache miss): '${{ steps.load_hash_cache.outputs.cache-hit }}'" >> $GITHUB_STEP_SUMMARY
-            python ./scripts/calculate_hashes.py
-
       - name: Azure login with federated credentials
         uses: azure/login@v2
         with:
@@ -114,16 +90,17 @@ jobs:
         id: check_artifacts
         uses: ./.github/actions/check_artifacts
         with:
-          artifacts-file: ./scripts/example-artifacts.yaml
+          filter-file: ./scripts/example-filter.yaml
+          workflow-file: .github/workflows/basic.yml
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
 
   build-common:
     runs-on: ubuntu-latest
     needs: calculate
-    if:  ${{ !failure() && !fromJson(needs.calculate.outputs.artifact_exists).common_src_build }}
+    if:  ${{ !failure() && !fromJson(needs.calculate.outputs.jobs).build-common.artifact_exists }}
     env:
-      KEY_COMMON_BUILD: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}
+      KEY_COMMON_BUILD: ${{ fromJson(needs.calculate.outputs.jobs).build-common.artifact_key }}
     steps:
       - uses: actions/checkout@v4
 
@@ -133,8 +110,8 @@ jobs:
           sleep 5
           echo "common built for $KEY_COMMON_BUILD" > build_common.txt
           echo "Pretending to build... done"
-          echo '... ${{ needs.calculate.outputs.artifact_exists}}'
-          echo '... ${{ fromJson(needs.calculate.outputs.artifact_exists).common_build }}'
+          echo '... ${{ needs.calculate.outputs.jobs}}'
+          echo '... ${{ fromJson(needs.calculate.outputs.jobs).build-common.artifact_exists }}'
       
       - name: Azure login with federated credentials
         uses: azure/login@v2
@@ -149,7 +126,7 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.jobs).build-common.artifact_key }}
           path: |
             build_common.txt
             README.md
@@ -159,9 +136,9 @@ jobs:
     needs:
       - calculate
       - build-common
-    if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.artifact_exists).src_build) || needs.build-common.result == 'success' }}
+    if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.jobs).build.artifact_exists) || needs.build-common.result == 'success' }}
     env:
-      KEY_BUILD: ${{ fromJson(needs.calculate.outputs.artifact_key).src_build }}
+      KEY_BUILD: ${{ fromJson(needs.calculate.outputs.jobs).build.artifact_key }}
     steps:
       - uses: actions/checkout@v4
 
@@ -178,7 +155,7 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.jobs).build-common.artifact_key }}
           path: ./common_build_output/
 
       - name: Build
@@ -199,7 +176,7 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_key).src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.jobs).build.artifact_key }}
           path: |
             build.txt
 
@@ -208,16 +185,16 @@ jobs:
     needs:
       - calculate
       - build-common
-    if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.artifact_exists).common_test_test) || needs.build-common.result == 'success' }}
+    if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.jobs).test-common.artifact_exists) || needs.build-common.result == 'success' }}
     env:
-      KEY_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.artifact_key).common_test_test }}
+      KEY_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.jobs).test-common.artifact_key }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Test
         run: |
-          echo "key_common_build: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}"
-          echo "key_common_test: ${{ fromJson(needs.calculate.outputs.artifact_key).common_test_test }}"
+          echo "key_common_build: ${{ fromJson(needs.calculate.outputs.jobs).build.artifact_key }}"
+          echo "key_common_test: ${{ fromJson(needs.calculate.outputs.jobs).test-common.artifact_key }}"
 
 
       - name: Azure login with federated credentials
@@ -232,7 +209,7 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.jobs).build-common.artifact_key }}
           path: ./common_build_output/
       
       - name: Test
@@ -253,7 +230,7 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_key).common_test_test }}
+          key: ${{ fromJson(needs.calculate.outputs.jobs).test-common.artifact_key }}
           path: |
             test_common.txt
 
@@ -262,9 +239,9 @@ jobs:
     needs:
       - calculate
       - build
-    if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.artifact_exists).test_test) || needs.build.result == 'success' }}
+    if:  ${{ (!failure() && !fromJson(needs.calculate.outputs.jobs).test.artifact_exists) || needs.build.result == 'success' }}
     env:
-      KEY_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.artifact_exists).test_test }}
+      KEY_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.jobs).test.artifact_key }}
     steps:
       - uses: actions/checkout@v4
 
@@ -282,7 +259,7 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_key).common_src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.jobs).build-common.artifact_key }}
           path: ./common_build_output/
 
       - name: download artifacts (src_build)
@@ -291,7 +268,7 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_key).src_build }}
+          key: ${{ fromJson(needs.calculate.outputs.jobs).build.artifact_key }}
           path: ./build_output/
         
       - name: Test
@@ -315,6 +292,6 @@ jobs:
           azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           container: artifacts # ensure this exists
-          key: ${{ fromJson(needs.calculate.outputs.artifact_key).test_test }}
+          key: ${{ fromJson(needs.calculate.outputs.jobs).test.artifact_key }}
           path: |
             test.txt

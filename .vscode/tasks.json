@@ -1,0 +1,11 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build-check-artifacts",
+			"type": "npm",
+			"script": "build",
+			"path": ".github/actions/check_artifacts",
+		}
+	]
+}

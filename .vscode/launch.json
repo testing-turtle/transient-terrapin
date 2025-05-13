@@ -5,6 +5,16 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
+			"type": "node",
+			"request": "launch",
+			"name": "Debug Check-Artifacts Action",
+			"program": "${workspaceFolder}/.github/actions/check_artifacts/src/index.ts",
+			"preLaunchTask": "build-check-artifacts",
+			"outFiles": [
+				"${workspaceFolder}/out/**/*.js"
+			]
+		},
+		{
 			"name": "Python Debugger: Process Path Filter",
 			"type": "debugpy",
 			"request": "launch",
@@ -17,7 +27,5 @@
 				"GITHUB_STEP_SUMMARY": "/tmp/github_step_summary.txt"
 			}
 		}
-
-		
 	]
 }
