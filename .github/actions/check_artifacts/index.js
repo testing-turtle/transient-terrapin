@@ -144,8 +144,8 @@ for (const artifact of artifacts) {
 fs.writeFileSync(artifactOutputFile, JSON.stringify(result, null, 2), 'utf8');
 
 
-fs.appendFileSync(stepSummaryFile, `\n<details>\n<summary>exists JSON</summary>\n\`\`\`json\n${artifactExistsJson}\n\`\`\`\n</details>\n`)
-fs.appendFileSync(stepSummaryFile, `\n<details>\n<summary>key JSON</summary>\n\`\`\`json\n${artifactKeyJson}\n\`\`\`\n</details>\n`)
+fs.appendFileSync(stepSummaryFile, `\n<details>\n<summary>exists JSON</summary>\n\n\`\`\`json\n${artifactExistsJson}\n\n\`\`\`\n</details>\n`)
+fs.appendFileSync(stepSummaryFile, `\n<details>\n<summary>key JSON</summary>\n\n\`\`\`json\n${artifactKeyJson}\n\n\`\`\`\n</details>\n`)
 
 const artifactClient = new DefaultArtifactClient()
 const artifactResultKey = `artifact_summary`;
