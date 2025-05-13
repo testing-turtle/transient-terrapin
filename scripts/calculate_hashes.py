@@ -92,9 +92,9 @@ class Filter:
 
     def calculate_hash(self, files: Iterable[str]) -> str:
         """
-        Calculate the fingerprint based on the files that match the filter
+        Calculate the hash based on the files that match the filter
 
-        NOTE: to get a stable fingerprint, ensure a consistent order of files
+        NOTE: to get a stable hash, ensure a consistent order of files
         """
 
         # iterate the files in the file_list and calculate the sha1 hash
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     print(
         f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
 
-    write_to_step_summary("\n|Filter|Hash| Cached|\n|---|---|---|")
+    write_to_step_summary("\n|Filter|Hash| Computed|\n|---|---|---|")
 
     for filter in filters:
         filter_var_name = f"FILTER_{filter.name.upper()}"
@@ -227,7 +227,7 @@ if __name__ == "__main__":
                 set_github_output(f"hash_{filter.name}", hash)
                 set_github_env(f"hash_{filter.name}", hash)
                 print(f"Filter {filter.name} - using cached hash '{hash}'", flush=True)
-                write_to_step_summary(f"|{filter.name}|{hash}|yes|")
+                write_to_step_summary(f"|{filter.name}|{hash}|no|")
                 continue
             else:
                 update_filter = True
@@ -245,4 +245,4 @@ if __name__ == "__main__":
         duration = end_time - start_time
         print(
             f"Filter {filter.name} - hash: '{hash}' - took {duration:.3f} seconds", flush=True)
-        write_to_step_summary(f"|{filter.name}|{hash}|no|")
+        write_to_step_summary(f"|{filter.name}|{hash}|yes|")

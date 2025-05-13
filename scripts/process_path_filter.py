@@ -94,11 +94,11 @@ class Filter:
         result = match and not allFilesMatchAnySkip
         return result
 
-    def calculate_fingerprint(self, files: Iterable[str]) -> str:
+    def calculate_hash(self, files: Iterable[str]) -> str:
         """
-        Calculate the fingerprint based on the files that match the filter
+        Calculate the hash based on the files that match the filter
 
-        NOTE: to get a stable fingerprint, ensure a consistent order of files
+        NOTE: to get a stable hash, ensure a consistent order of files
         """
 
         # iterate the files in the file_list and calculate the sha1 hash
@@ -281,7 +281,7 @@ if __name__ == "__main__":
 
     if len(file_change_list) >10:
         print(f"Changed files (partial list): {file_change_list[0:10]}", flush=True)
-        append_to_step_summary(f"Changed files (partial list): {file_change_list[0:10].join(', ')}, ...")
+        append_to_step_summary(f"Changed files (partial list): {", ".join(file_change_list[0:10])}, ...")
     else:
         append_to_step_summary(f"Changed files: {file_change_list}")
         print(f"Changed files: {file_change_list}", flush=True)
@@ -298,3 +298,4 @@ if __name__ == "__main__":
         end_time = time.time()
         duration = end_time - start_time
         print(f"Filter {filter.name} took {duration:.3f} seconds to process", flush=True)
+
