@@ -13,6 +13,9 @@ inputs:
   container:
     description: Container name
     required: true
+  github-token:
+    description: GitHub token for authentication
+    required: true
 outputs:
   jobs:
     description: JSON object keyed on job name with values including whether the job's artifact exists and its artifact key
