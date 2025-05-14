@@ -45,6 +45,7 @@ class Filter {
   private _nameRegex: RegExp;
   private _files: PathFilter[];
   private _skipIf: SkipIf;
+  private _cachedHash: string | null = null;
   /**
    * Creates a new Filter
    * @param {string} nameRegex - Regex pattern for job names
@@ -127,6 +128,11 @@ class Filter {
    * @returns {string} - Hash digest
    */
   calculateHash(files : string[]) {
+    if (this._cachedHash !== null) {
+      console.log(`Filter '${this._nameExpression}' hash already calculated: ${this._cachedHash}`);
+      return this._cachedHash;
+    }
+
     // Create a SHA-1 hash
     const hash = crypto.createHash('sha1');
 
@@ -149,6 +155,7 @@ class Filter {
 
     const hashValue = hash.digest('hex');
     console.log(`Filter '${this._nameExpression}' hash: ${hashValue}`);
+    this._cachedHash = hashValue;
     return hashValue;
   }
 }
