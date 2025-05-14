@@ -1,9 +1,9 @@
 import * as github from '@actions/github';
-import {exec} from './wrappers.js';
+import { exec } from './wrappers.js';
 
 
 
-export async function getPRFiles(githubToken: string) : Promise<string[] | null> {
+export async function getPRFiles(githubToken: string): Promise<string[] | null> {
 	const prNumber = github.context.payload.pull_request?.number;
 	if (!prNumber) {
 		console.log("No pull request found");
@@ -11,16 +11,15 @@ export async function getPRFiles(githubToken: string) : Promise<string[] | null>
 	}
 	const octokit = github.getOctokit(githubToken);
 	const context = github.context;
-	const { data } = await octokit.rest.pulls.listFiles({
+	const data = await octokit.paginate(octokit.rest.pulls.listFiles, {
 		owner: context.repo.owner,
 		repo: context.repo.repo,
 		pull_number: prNumber,
 	});
-	// TODO pagination!
 	return data.map(file => file.filename);
 }
 
-export async function getGitChanges(targetBranch: string) : Promise<string[] | null> {
+export async function getGitChanges(targetBranch: string): Promise<string[] | null> {
 
 	try {
 		const { stdout } = await exec(`git diff --name-only ${targetBranch}`);
