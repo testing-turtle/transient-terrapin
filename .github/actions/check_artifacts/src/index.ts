@@ -51,7 +51,7 @@ function outputChangeFileSummary(changedFiles: string[] | null) {
     if (changedFiles.length === 0) {
       fs.appendFileSync(stepSummaryFile, `\nNone\n\n`);
     } else if (changedFiles.length > 10) {
-      fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n- ...\n\n`);
+      fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.slice(0,10).join("\n- ")}\n- ...\n\n`);
     } else {
       fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n\n`);
     }
