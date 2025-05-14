@@ -95787,12 +95787,11 @@ async function getPRFiles(githubToken) {
     }
     const octokit = githubExports.getOctokit(githubToken);
     const context = githubExports.context;
-    const { data } = await octokit.rest.pulls.listFiles({
+    const data = await octokit.paginate(octokit.rest.pulls.listFiles, {
         owner: context.repo.owner,
         repo: context.repo.repo,
         pull_number: prNumber,
     });
-    // TODO pagination!
     return data.map(file => file.filename);
 }
 async function getGitChanges(targetBranch) {
