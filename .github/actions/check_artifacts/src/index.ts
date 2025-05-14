@@ -19,6 +19,7 @@ const containerName = core.getInput('container', { required: true });
 const filterFile = core.getInput('filter-file', { required: true });
 const workflowFile = core.getInput('workflow-file', { required: true });
 const githubToken = core.getInput('github-token', { required: true });
+const baseRef = core.getInput('base-ref', { required: true });
 
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
 
@@ -34,10 +35,36 @@ if (!await containerClient.exists()) {
   process.exit(1);
 }
 
+
+async function getChanges() {
+  const prChanges = await getPRFiles(githubToken)
+  if (prChanges) {
+    return prChanges;
+  }
+  return await getGitChanges(baseRef);
+}
+
+function outputChangeFileSummary(changedFiles: string[] | null) {
+  fs.appendFileSync(stepSummaryFile, `\n\n## Calculate results\n\n`);
+  if (changedFiles) {
+    fs.appendFileSync(stepSummaryFile, `Changed files:\n`);
+    if (changedFiles.length === 0) {
+      fs.appendFileSync(stepSummaryFile, `\nNone\n\n`);
+    } else if (changedFiles.length > 10) {
+      fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n- ...\n\n`);
+    } else {
+      fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n\n`);
+    }
+  } else {
+    core.warning("Unable to determine changed files - assuming all files may have changed");
+    fs.appendFileSync(stepSummaryFile, `Unable to determine changed files - assuming all files may have changed and recomputing hashes\n`);
+  }
+}
+
 function getCachedHashes() {
   const hashes = new Map<string, string>();
   // List files in .hashes directory and load each file
-  // TODO - work out better way to handle the relative path
+  // TODO - update to store as JSON in single file
   if (!fs.existsSync(".hashes")) {
     console.log("No .hashes directory found - using empty hash set");
     return hashes;
@@ -92,16 +119,12 @@ async function run() {
   // The job outputs both the artifact keys and whether each artifact exists
   //
 
-
   const filters = loadFilterFile(filterFile);
 
   const jobNames = getWorkflowJobs(workflowFile);
 
-  const changedFiles = (await getPRFiles(githubToken)) || (await getGitChanges("main"));
-
-  console.log("==== changed files ====");
-  console.log(changedFiles); // TODO step summary, limit number of files
-
+  // if we're in a push event (i.e. building after merge), recompute the hashes
+  const changedFiles = github.context.eventName === "push" ? null : await getChanges();
 
   const cachedHashes = getCachedHashes();
   console.log("==== cached hashes ====");
@@ -109,22 +132,7 @@ async function run() {
 
   const repoFiles = recursiveFileList(".");
 
-
-  fs.appendFileSync(stepSummaryFile, `\n\n## Calculate results\n\n`);
-  if (changedFiles) {
-    fs.appendFileSync(stepSummaryFile, `Changed files:\n`);
-    if (changedFiles.length === 0 ) {
-      fs.appendFileSync(stepSummaryFile, `\nNone\n\n`);
-    } else if (changedFiles.length > 10) {
-      fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n- ...\n\n`);
-    } else {
-      fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n\n`);
-    }
-  } else {
-    core.warning("Unable to determin changed files - assuming all files may have changed");
-    fs.appendFileSync(stepSummaryFile, `Unable to determine changed files - assuming all files may have changed and recomputing hashes\n`);
-  }
-
+  outputChangeFileSummary(changedFiles);
   fs.appendFileSync(stepSummaryFile, `|Job| Has Changed Files| Hash| Artifact Key| Artifact Exists|\n`);
   fs.appendFileSync(stepSummaryFile, `|---|---|---|---|---|\n`);
 
@@ -138,13 +146,11 @@ async function run() {
         break;
       }
     }
-    // const filter = filters.find(filter => { filter.matchesName("test"); });
     if (!filter) {
       console.log(`No filter found for job '${jobName}'`);
       continue;
     }
     const hasChangedFiles = changedFiles ? filter.isMatch(changedFiles) : true;
-    // TODO - if we have already calculated the hash for the filter, reuse it
     const hash = (!hasChangedFiles ? cachedHashes.get(jobName) : null) ?? filter.calculateHash(repoFiles);
     saveCachedHash(jobName, hash);
     const artifactKey = `${artifactPrefix}/${jobName}_${hash}`;
@@ -161,3 +167,4 @@ async function run() {
 }
 
 run();
+

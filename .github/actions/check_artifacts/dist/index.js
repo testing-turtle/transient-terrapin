@@ -95570,6 +95570,7 @@ class Filter {
     _nameRegex;
     _files;
     _skipIf;
+    _cachedHash = null;
     /**
      * Creates a new Filter
      * @param {string} nameRegex - Regex pattern for job names
@@ -95639,6 +95640,10 @@ class Filter {
      * @returns {string} - Hash digest
      */
     calculateHash(files) {
+        if (this._cachedHash !== null) {
+            console.log(`Filter '${this._nameExpression}' hash already calculated: ${this._cachedHash}`);
+            return this._cachedHash;
+        }
         // Create a SHA-1 hash
         const hash = crypto$1.createHash('sha1');
         console.log(`::group::Hash files for filter '${this._nameExpression}'`);
@@ -95658,6 +95663,7 @@ class Filter {
         console.log(`::endgroup::`);
         const hashValue = hash.digest('hex');
         console.log(`Filter '${this._nameExpression}' hash: ${hashValue}`);
+        this._cachedHash = hashValue;
         return hashValue;
     }
 }
@@ -95806,6 +95812,7 @@ const containerName = coreExports.getInput('container', { required: true });
 const filterFile = coreExports.getInput('filter-file', { required: true });
 const workflowFile = coreExports.getInput('workflow-file', { required: true });
 const githubToken = coreExports.getInput('github-token', { required: true });
+const baseRef = coreExports.getInput('base-ref', { required: true });
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
 const azCredential = new DefaultAzureCredential();
 const blobClient = new BlobServiceClient(`https://${storageAccountName}.blob.core.windows.net`, azCredential);
@@ -95814,10 +95821,36 @@ if (!await containerClient.exists()) {
     console.log(`Container ${containerName} does not exist`);
     process.exit(1);
 }
+async function getChanges() {
+    const prChanges = await getPRFiles(githubToken);
+    if (prChanges) {
+        return prChanges;
+    }
+    return await getGitChanges(baseRef);
+}
+function outputChangeFileSummary(changedFiles) {
+    fs__default.appendFileSync(stepSummaryFile, `\n\n## Calculate results\n\n`);
+    if (changedFiles) {
+        fs__default.appendFileSync(stepSummaryFile, `Changed files:\n`);
+        if (changedFiles.length === 0) {
+            fs__default.appendFileSync(stepSummaryFile, `\nNone\n\n`);
+        }
+        else if (changedFiles.length > 10) {
+            fs__default.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n- ...\n\n`);
+        }
+        else {
+            fs__default.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n\n`);
+        }
+    }
+    else {
+        coreExports.warning("Unable to determine changed files - assuming all files may have changed");
+        fs__default.appendFileSync(stepSummaryFile, `Unable to determine changed files - assuming all files may have changed and recomputing hashes\n`);
+    }
+}
 function getCachedHashes() {
     const hashes = new Map();
     // List files in .hashes directory and load each file
-    // TODO - work out better way to handle the relative path
+    // TODO - update to store as JSON in single file
     if (!fs__default.existsSync(".hashes")) {
         console.log("No .hashes directory found - using empty hash set");
         return hashes;
@@ -95863,30 +95896,13 @@ async function run() {
     //
     const filters = loadFilterFile(filterFile);
     const jobNames = getWorkflowJobs(workflowFile);
-    const changedFiles = (await getPRFiles(githubToken)) || (await getGitChanges("main"));
-    console.log("==== changed files ====");
-    console.log(changedFiles); // TODO step summary, limit number of files
+    // if we're in a push event (i.e. building after merge), recompute the hashes
+    const changedFiles = githubExports.context.eventName === "push" ? null : await getChanges();
     const cachedHashes = getCachedHashes();
     console.log("==== cached hashes ====");
     console.log(cachedHashes);
     const repoFiles = recursiveFileList(".");
-    fs__default.appendFileSync(stepSummaryFile, `\n\n## Calculate results\n\n`);
-    if (changedFiles) {
-        fs__default.appendFileSync(stepSummaryFile, `Changed files:\n`);
-        if (changedFiles.length === 0) {
-            fs__default.appendFileSync(stepSummaryFile, `\nNone\n\n`);
-        }
-        else if (changedFiles.length > 10) {
-            fs__default.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n- ...\n\n`);
-        }
-        else {
-            fs__default.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n\n`);
-        }
-    }
-    else {
-        coreExports.warning("Unable to determin changed files - assuming all files may have changed");
-        fs__default.appendFileSync(stepSummaryFile, `Unable to determine changed files - assuming all files may have changed and recomputing hashes\n`);
-    }
+    outputChangeFileSummary(changedFiles);
     fs__default.appendFileSync(stepSummaryFile, `|Job| Has Changed Files| Hash| Artifact Key| Artifact Exists|\n`);
     fs__default.appendFileSync(stepSummaryFile, `|---|---|---|---|---|\n`);
     const jobInfoMap = {};
@@ -95899,13 +95915,11 @@ async function run() {
                 break;
             }
         }
-        // const filter = filters.find(filter => { filter.matchesName("test"); });
         if (!filter) {
             console.log(`No filter found for job '${jobName}'`);
             continue;
         }
         const hasChangedFiles = changedFiles ? filter.isMatch(changedFiles) : true;
-        // TODO - if we have already calculated the hash for the filter, reuse it
         const hash = (!hasChangedFiles ? cachedHashes.get(jobName) : null) ?? filter.calculateHash(repoFiles);
         saveCachedHash(jobName, hash);
         const artifactKey = `${artifactPrefix}/${jobName}_${hash}`;
