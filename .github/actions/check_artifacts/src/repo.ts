@@ -3,18 +3,13 @@ import {exec} from './wrappers.js';
 
 
 
-export async function getPRFiles() : Promise<string[] | null> {
-	const token = process.env.GITHUB_TOKEN;
-	if (!token) {
-		console.log("GITHUB_TOKEN not set");
-		return null;
-	}
+export async function getPRFiles(githubToken: string) : Promise<string[] | null> {
 	const prNumber = github.context.payload.pull_request?.number;
 	if (!prNumber) {
 		console.log("No pull request found");
 		return null;
 	}
-	const octokit = github.getOctokit(token);
+	const octokit = github.getOctokit(githubToken);
 	const context = github.context;
 	const { data } = await octokit.rest.pulls.listFiles({
 		owner: context.repo.owner,

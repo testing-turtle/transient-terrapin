@@ -75,10 +75,6 @@ jobs:
           restore-keys: |
             hash-cache-${{ steps.get_ref.outputs.result }}
 
-      - name: examine cache step output
-        run: |
-          echo '${{ toJson(steps.load_hash_cache.outputs) }}'
-        
       - name: Azure login with federated credentials
         uses: azure/login@v2
         with:
@@ -93,8 +89,13 @@ jobs:
           filter-file: ./scripts/example-filter.yaml
           workflow-file: .github/workflows/basic.yml
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           container: artifacts # ensure this exists
-
+          
+      - name: examine hash cache files
+        run: |
+          ls -al .hashes
+        
   build-common:
     runs-on: ubuntu-latest
     needs: calculate

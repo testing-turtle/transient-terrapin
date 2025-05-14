@@ -95641,11 +95641,13 @@ class Filter {
     calculateHash(files) {
         // Create a SHA-1 hash
         const hash = crypto$1.createHash('sha1');
+        console.log(`::group::Hash files for filter '${this._nameExpression}'`);
         for (const file of files) {
             for (const pathFilter of this._files) {
                 if (pathFilter.regex.test(file)) {
                     // Add the filename to the hash
                     hash.update(file);
+                    console.log(`- ${file}`);
                     // Read and hash file contents
                     const fileContent = fs__default.readFileSync(file);
                     hash.update(fileContent);
@@ -95653,7 +95655,10 @@ class Filter {
                 }
             }
         }
-        return hash.digest('hex');
+        console.log(`::endgroup::`);
+        const hashValue = hash.digest('hex');
+        console.log(`Filter '${this._nameExpression}' hash: ${hashValue}`);
+        return hashValue;
     }
 }
 /**
@@ -95768,6 +95773,22 @@ function getRequiredEnvVariable(name) {
     return value;
 }
 
+async function getPRFiles(githubToken) {
+    const prNumber = githubExports.context.payload.pull_request?.number;
+    if (!prNumber) {
+        console.log("No pull request found");
+        return null;
+    }
+    const octokit = githubExports.getOctokit(githubToken);
+    const context = githubExports.context;
+    const { data } = await octokit.rest.pulls.listFiles({
+        owner: context.repo.owner,
+        repo: context.repo.repo,
+        pull_number: prNumber,
+    });
+    // TODO pagination!
+    return data.map(file => file.filename);
+}
 async function getGitChanges(targetBranch) {
     try {
         const { stdout } = await exec(`git diff --name-only ${targetBranch}`);
@@ -95784,6 +95805,7 @@ const storageAccountName = coreExports.getInput('storage-account', { required: t
 const containerName = coreExports.getInput('container', { required: true });
 const filterFile = coreExports.getInput('filter-file', { required: true });
 const workflowFile = coreExports.getInput('workflow-file', { required: true });
+const githubToken = coreExports.getInput('github-token', { required: true });
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
 const azCredential = new DefaultAzureCredential();
 const blobClient = new BlobServiceClient(`https://${storageAccountName}.blob.core.windows.net`, azCredential);
@@ -95808,11 +95830,15 @@ function getCachedHashes() {
     });
     return hashes;
 }
+function saveCachedHash(jobName, hash) {
+    // Save the hash to the .hashes directory
+    const fileName = `.hashes/${jobName}.hash`;
+    fs__default.mkdirSync(".hashes", { recursive: true });
+    fs__default.writeFileSync(fileName, hash);
+}
 async function testArtifactExists(artifactKey) {
     const blobName = `${artifactKey}/artifacts.zip`;
-    console.log(`Checking if blob exists: ${blobName}`);
     const exists = await containerClient.getBlobClient(blobName).exists();
-    console.log(`Blob ${blobName} exists: ${exists}`);
     return exists;
 }
 async function run() {
@@ -95837,7 +95863,7 @@ async function run() {
     //
     const filters = loadFilterFile(filterFile);
     const jobNames = getWorkflowJobs(workflowFile);
-    const changedFiles = (await getGitChanges("main")) || []; // TODO ------------------------------------ add PR files in
+    const changedFiles = (await getPRFiles(githubToken)) || (await getGitChanges("main"));
     console.log("==== changed files ====");
     console.log(changedFiles); // TODO step summary, limit number of files
     const cachedHashes = getCachedHashes();
@@ -95845,7 +95871,23 @@ async function run() {
     console.log(cachedHashes);
     const repoFiles = recursiveFileList(".");
     fs__default.appendFileSync(stepSummaryFile, `\n\n## Calculate results\n\n`);
-    fs__default.appendFileSync(stepSummaryFile, `|Job| Has changed files| Hash| Artifact Key| Artifact Exists|\n`);
+    if (changedFiles) {
+        fs__default.appendFileSync(stepSummaryFile, `Changed files:\n`);
+        if (changedFiles.length === 0) {
+            fs__default.appendFileSync(stepSummaryFile, `\nNone\n\n`);
+        }
+        else if (changedFiles.length > 10) {
+            fs__default.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n- ...\n\n`);
+        }
+        else {
+            fs__default.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n\n`);
+        }
+    }
+    else {
+        coreExports.warning("Unable to determin changed files - assuming all files may have changed");
+        fs__default.appendFileSync(stepSummaryFile, `Unable to determine changed files - assuming all files may have changed and recomputing hashes\n`);
+    }
+    fs__default.appendFileSync(stepSummaryFile, `|Job| Has Changed Files| Hash| Artifact Key| Artifact Exists|\n`);
     fs__default.appendFileSync(stepSummaryFile, `|---|---|---|---|---|\n`);
     const jobInfoMap = {};
     const artifactPrefix = githubExports.context.repo.owner + "/" + githubExports.context.repo.repo;
@@ -95862,8 +95904,10 @@ async function run() {
             console.log(`No filter found for job '${jobName}'`);
             continue;
         }
-        const hasChangedFiles = filter.isMatch(changedFiles);
+        const hasChangedFiles = changedFiles ? filter.isMatch(changedFiles) : true;
+        // TODO - if we have already calculated the hash for the filter, reuse it
         const hash = (!hasChangedFiles ? cachedHashes.get(jobName) : null) ?? filter.calculateHash(repoFiles);
+        saveCachedHash(jobName, hash);
         const artifactKey = `${artifactPrefix}/${jobName}_${hash}`;
         const artifactExists = await testArtifactExists(artifactKey);
         jobInfoMap[jobName] = { hash_changed_files: hasChangedFiles, hash, artifact_key: artifactKey, artifact_exists: artifactExists };

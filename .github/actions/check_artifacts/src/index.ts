@@ -10,7 +10,7 @@ import { BlobServiceClient } from "@azure/storage-blob";
 
 import { loadFilterFile, recursiveFileList } from './filter.js';
 import { getWorkflowJobs } from './workflow.js';
-import { getGitChanges } from './repo.js';
+import { getGitChanges, getPRFiles } from './repo.js';
 import { getRequiredEnvVariable } from './wrappers.js';
 
 
@@ -18,6 +18,7 @@ const storageAccountName = core.getInput('storage-account', { required: true });
 const containerName = core.getInput('container', { required: true });
 const filterFile = core.getInput('filter-file', { required: true });
 const workflowFile = core.getInput('workflow-file', { required: true });
+const githubToken = core.getInput('github-token', { required: true });
 
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
 
@@ -49,12 +50,16 @@ function getCachedHashes() {
   });
   return hashes;
 }
+function saveCachedHash(jobName: string, hash: string) {
+  // Save the hash to the .hashes directory
+  const fileName = `.hashes/${jobName}.hash`;
+  fs.mkdirSync(".hashes", { recursive: true });
+  fs.writeFileSync(fileName, hash);
+}
 
 async function testArtifactExists(artifactKey: string) {
   const blobName = `${artifactKey}/artifacts.zip`;
-  console.log(`Checking if blob exists: ${blobName}`);
   const exists = await containerClient.getBlobClient(blobName).exists()
-  console.log(`Blob ${blobName} exists: ${exists}`);
   return exists;
 }
 
@@ -92,7 +97,7 @@ async function run() {
 
   const jobNames = getWorkflowJobs(workflowFile);
 
-  const changedFiles = (await getGitChanges("main")) || []; // TODO ------------------------------------ add PR files in
+  const changedFiles = (await getPRFiles(githubToken)) || (await getGitChanges("main"));
 
   console.log("==== changed files ====");
   console.log(changedFiles); // TODO step summary, limit number of files
@@ -104,8 +109,23 @@ async function run() {
 
   const repoFiles = recursiveFileList(".");
 
+
   fs.appendFileSync(stepSummaryFile, `\n\n## Calculate results\n\n`);
-  fs.appendFileSync(stepSummaryFile, `|Job| Has changed files| Hash| Artifact Key| Artifact Exists|\n`);
+  if (changedFiles) {
+    fs.appendFileSync(stepSummaryFile, `Changed files:\n`);
+    if (changedFiles.length === 0 ) {
+      fs.appendFileSync(stepSummaryFile, `\nNone\n\n`);
+    } else if (changedFiles.length > 10) {
+      fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n- ...\n\n`);
+    } else {
+      fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n\n`);
+    }
+  } else {
+    core.warning("Unable to determin changed files - assuming all files may have changed");
+    fs.appendFileSync(stepSummaryFile, `Unable to determine changed files - assuming all files may have changed and recomputing hashes\n`);
+  }
+
+  fs.appendFileSync(stepSummaryFile, `|Job| Has Changed Files| Hash| Artifact Key| Artifact Exists|\n`);
   fs.appendFileSync(stepSummaryFile, `|---|---|---|---|---|\n`);
 
   const jobInfoMap: { [key: string]: JobInfo } = {};
@@ -123,8 +143,10 @@ async function run() {
       console.log(`No filter found for job '${jobName}'`);
       continue;
     }
-    const hasChangedFiles = filter.isMatch(changedFiles);
+    const hasChangedFiles = changedFiles ? filter.isMatch(changedFiles) : true;
+    // TODO - if we have already calculated the hash for the filter, reuse it
     const hash = (!hasChangedFiles ? cachedHashes.get(jobName) : null) ?? filter.calculateHash(repoFiles);
+    saveCachedHash(jobName, hash);
     const artifactKey = `${artifactPrefix}/${jobName}_${hash}`;
     const artifactExists = await testArtifactExists(artifactKey);
     jobInfoMap[jobName] = { hash_changed_files: hasChangedFiles, hash, artifact_key: artifactKey, artifact_exists: artifactExists };

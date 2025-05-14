@@ -130,11 +130,13 @@ class Filter {
     // Create a SHA-1 hash
     const hash = crypto.createHash('sha1');
 
+    console.log(`::group::Hash files for filter '${this._nameExpression}'`);
     for (const file of files) {
       for (const pathFilter of this._files) {
         if (pathFilter.regex.test(file)) {
           // Add the filename to the hash
           hash.update(file);
+          console.log(`- ${file}`);
 
           // Read and hash file contents
           const fileContent = fs.readFileSync(file);
@@ -143,8 +145,11 @@ class Filter {
         }
       }
     }
+    console.log(`::endgroup::`);
 
-    return hash.digest('hex');
+    const hashValue = hash.digest('hex');
+    console.log(`Filter '${this._nameExpression}' hash: ${hashValue}`);
+    return hashValue;
   }
 }
 
