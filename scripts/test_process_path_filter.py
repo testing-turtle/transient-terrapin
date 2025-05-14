@@ -3,7 +3,7 @@ from .process_path_filter import Filter, SkipIf
 
 def test_simple_match():
 	filter = Filter(
-		name="test",
+		name_regex="test",
 		files=["test"],
 	)
 	assert filter.is_match(["test.txt"])
@@ -14,7 +14,7 @@ def test_simple_match():
 
 def test_skip_files():
 	filter = Filter(
-		name="test",
+		name_regex="test",
 		files=["test"],
 		skip_if=SkipIf(
 			all_file_match_any=["test.py"],

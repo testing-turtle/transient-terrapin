@@ -1,8 +1,11 @@
 name: 'Check for artifacts'
 description: 'Test whether a set of artifacts exist'
 inputs:
-  artifacts-file:
-    description: Path to the file defining the artifacts to test for
+  filter-file:
+    description: Path to the file defining the job filters
+    required: true
+  workflow-file:
+    description: Path to the workflow file
     required: true
   storage-account:
     description: Storage account name
@@ -11,12 +14,8 @@ inputs:
     description: Container name
     required: true
 outputs:
-  key:
-    description: Artifact key JSON object keyed on filter name
-  exists:
-    description:  JSON object keyed on filter name with values indicating whether the artifact exists
-  artifact_result_key:
-    description:  Artifact key to use to retrieve the artifact containing the JSON of the artifact results
+  jobs:
+    description: JSON object keyed on job name with values including whether the job's artifact exists and its artifact key
 runs:
   using: 'node20'
   main: 'dist/index.js'

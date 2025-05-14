@@ -1,32 +1,28 @@
-- name: common
-  files:
-    - ^dummy_files/common/
-  skip-if:
-    all-files-match-any:
-      - \.md$
-      - \.foo$
-- name: common_src
+- name: ^build-common
   files:
     - ^dummy_files/common/src
   skip-if:
     all-files-match-any:
       - \.md$
       - \.foo$
-- name: common_test
+
+- name: ^test-common
   files:
     - ^dummy_files/common/test
   skip-if:
     all-files-match-any:
       - \.md$
       - \.foo$
-- name: src
+
+- name: ^build$
   files:
     - ^dummy_files/src
   skip-if:
     all-files-match-any:
       - \.md$
       - \.foo$
-- name: test
+
+- name: ^test$
   files:
     - ^dummy_files/test
   skip-if:

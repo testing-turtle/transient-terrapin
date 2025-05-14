@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import hashlib
+import json
 import os
 import re
 import time
@@ -13,7 +14,7 @@ import yaml
 # Import the path list specified in FILTER_FILE into a data structure.
 # This is a YAML file in the following format:
 #
-# name: <filter_name>
+# name: <job_regexp>
 # files:
 #   - <path regex>
 #   - <path regex>
@@ -48,12 +49,14 @@ class SkipIf:
 
 
 class Filter:
-    name: str
+    name_expression: str
+    name_regex: re.Pattern
     files: list[PathFilter]
     skip_if: SkipIf | None = None
 
-    def __init__(self, name: str, files: list[str], skip_if: SkipIf | None = None):
-        self.name = name
+    def __init__(self, name_regex: str, files: list[str], skip_if: SkipIf | None = None):
+        self.name_expression = name_regex
+        self.name_regex = re.compile(name_regex)
         self.files = [PathFilter(e) for e in files]
         self.skip_if = skip_if
 
@@ -63,7 +66,7 @@ class Filter:
         """
         for path_filter in self.files:
             if path_filter.regex.match(file):
-                print(f"Filter {self.name} matched {file} on {path_filter.expression}", flush=True)
+                print(f"Filter {self.name_expression} matched {file} on {path_filter.expression}", flush=True)
                 return True
         return False
 
@@ -85,12 +88,12 @@ class Filter:
                     # print(f"Filter {self.name} skip-if match {file} on {skip_filter.expression}: {is_skip_match}", flush=True)
                     if not is_skip_match:
                         print(
-                            f"Filter {self.name} skip-if failed to match {file} on {skip_filter.expression}",
+                            f"Filter {self.name_expression} skip-if failed to match {file} on {skip_filter.expression}",
                             flush=True,
                         )
                         allFilesMatchAnySkip = False
                         break
-        print(f"Filter {self.name} match: {match}, allFilesMatchAnySkip: {allFilesMatchAnySkip}", flush=True)
+        print(f"Filter {self.name_expression} match: {match}, allFilesMatchAnySkip: {allFilesMatchAnySkip}", flush=True)
         result = match and not allFilesMatchAnySkip
         return result
 
@@ -185,6 +188,24 @@ def load_pr_changes() -> list[str]:
         sys.exit(1)
 
 
+def get_job_list(job_filename:str) -> list[str]:
+    with open(job_filename, "r") as f:
+        job_data = yaml.safe_load(f)
+    if job_data is None:
+        print(f"Job file {job_filename} is empty.", flush=True)
+        sys.exit(1)
+    
+    jobs = job_data.get("jobs", None)
+    if jobs is None:
+        print(f"Job file {job_filename} does not contain a jobs section.", flush=True)
+        sys.exit(1)
+    if not isinstance(jobs, dict):
+        print(f"Job file {job_filename} jobs section is not a dict.", flush=True)
+        sys.exit(1)
+    
+    return jobs.keys()
+    
+
 def load_filter_file(filter_file: str) -> list[Filter]:
     with open(filter_file, "r") as f:
         filter_data = yaml.safe_load(f)
@@ -216,7 +237,7 @@ def load_filter_file(filter_file: str) -> list[Filter]:
                 skip_if = SkipIf(filter_item["skip-if"]["all-files-match-any"])
 
         filter = Filter(
-            name=filter_item["name"],
+            name_regex=filter_item["name"],
             files=filter_item["files"],
             skip_if=skip_if,
         )
@@ -268,8 +289,16 @@ if __name__ == "__main__":
         print(f"Filter file {filter_file} does not exist.", flush=True)
         sys.exit(1)
 
+    workflow_file = os.getenv("WORKFLOW_FILE")
+    if workflow_file is None:
+        print("WORKFLOW_FILE environment variable is not set.", flush=True)
+        sys.exit(1)
+    if not os.path.exists(workflow_file):
+        print(f"Workflow file {workflow_file} does not exist.", flush=True)
+        sys.exit(1)
+
     filters = load_filter_file(filter_file)
-    print(f"Loaded filter file {filter_file} with filters {[f.name for f in filters]}", flush=True)
+    print(f"Loaded filter file {filter_file} with filters {[f.name_expression for f in filters]}", flush=True)
 
     file_change_list = load_pr_changes()
     got_changes_from_git = False
@@ -286,16 +315,25 @@ if __name__ == "__main__":
         append_to_step_summary(f"Changed files: {file_change_list}")
         print(f"Changed files: {file_change_list}", flush=True)
 
-    append_to_step_summary("|Filter|Result|")
-    append_to_step_summary("|---|---|")
-    for filter in filters:
-        start_time = time.time()
+    append_to_step_summary("|Job|Filter|Result|")
+    append_to_step_summary("|---|---|---|")
+    jobs = get_job_list(workflow_file)
+    result = {} # key is job name, value is filter result
+    for job in jobs:
+        job_filter = None
+        for filter in filters:
+            if filter.name_regex.match(job):
+                print(f"Job {job} matched filter {filter.name_expression}", flush=True)
+                job_filter = filter
+                break
+        if job_filter is None:
+            print(f"Job {job} did not match any filters", flush=True)
+            append_to_step_summary(f"|{job}|<none>| |")
+            continue
         filter_matches = filter.is_match(file_change_list)
-        set_github_output(f"filter_{filter.name}", str(filter_matches).lower())
-        set_github_env(f"FILTER_{filter.name.upper()}", str(filter_matches).lower())
-        append_to_step_summary(f"|{filter.name}|{str(filter.is_match(file_change_list)).lower()}|")
+        result[job] = filter_matches
+        append_to_step_summary(f"|{job}|{job_filter.name_expression}|{str(filter_matches).lower()}")
 
-        end_time = time.time()
-        duration = end_time - start_time
-        print(f"Filter {filter.name} took {duration:.3f} seconds to process", flush=True)
 
+    append_to_step_summary(f"\n\n<details><summary>Filter output</summary>\n\n```json\n{json.dumps(result, indent=2)}\n```\n\n</details>\n\n")
+    set_github_output("filter_result", json.dumps(result))
