@@ -29,12 +29,13 @@ const blobClient = new BlobServiceClient(
   `https://${storageAccountName}.blob.core.windows.net`,
   azCredential
 );
+console.log(`Checking whether container '${containerName}' exists in storage account '${storageAccountName}'`);
 const containerClient = blobClient.getContainerClient(containerName)
 if (!await containerClient.exists()) {
   console.log(`Container ${containerName} does not exist`);
   process.exit(1);
 }
-
+console.log(`Container ${containerName} exists - proceeding with artifact checks`);
 
 async function getChanges() {
   const prChanges = await getPRFiles(githubToken)
@@ -119,12 +120,16 @@ async function run() {
   // The job outputs both the artifact keys and whether each artifact exists
   //
 
+  console.log(`Loading filter file: ${filterFile}`);
   const filters = loadFilterFile(filterFile);
 
+  console.log(`Loading workflow file: ${workflowFile}`);
   const jobNames = getWorkflowJobs(workflowFile);
 
   // if we're in a push event (i.e. building after merge), recompute the hashes
-  const changedFiles = github.context.eventName === "push" ? null : await getChanges();
+  // if it's a workflow_dispatch event, recompute the hashes as we don't know if it's a PR branch or not
+  const recomputeHashes = github.context.eventName === "push" || github.context.eventName === "workflow_dispatch";
+  const changedFiles = recomputeHashes ? null : await getChanges();
 
   const cachedHashes = getCachedHashes();
   console.log("==== cached hashes ====");

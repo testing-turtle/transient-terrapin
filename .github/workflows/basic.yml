@@ -53,6 +53,9 @@ jobs:
                 return context.payload.merge_group.base_ref.split("/")[2];
                 break;
 
+              case "workflow_dispatch":
+                return context.payload.ref.split("/")[2];
+
               default:
                 core.setFailed(`Unhandled event type: ${eventName}`)
                 break;
@@ -71,8 +74,11 @@ jobs:
           # path filter should ensure that we only use cached hashes that are relevant to the current commit
           #
           # Docs: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/caching-dependencies-to-speed-up-workflows#matching-a-cache-key
-          key: hash-cache-${{ steps.get_ref.outputs.result }}-${{ github.sha }}
+          #
+          # Include event name as it's useful when debugging where the cache came from
+          key: hash-cache-${{ steps.get_ref.outputs.result }}-${{ github.sha }}-${{ github.event_name}}
           restore-keys: |
+            hash-cache-${{ steps.get_ref.outputs.result }}-${{ github.sha }}
             hash-cache-${{ steps.get_ref.outputs.result }}
 
       - name: Azure login with federated credentials
