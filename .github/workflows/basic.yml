@@ -61,10 +61,13 @@ jobs:
                 break;
             }
 
-
+      # Initially used the actions/cache action to cache the hash files
+      # This doesn't provide an output that indicates which cache key was used for the restore
+      # so switched to separate actions/cache/restor and actions/cache/save steps
+      # If https://github.com/actions/cache/pull/1604 is merged then we can switch back to using actions/cache
       - name: Load hash cache
         id: load_hash_cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         # uses: stuartleeks/actions-cache@add-restore-outputs-to-core
         with:
           path: .hashes
@@ -80,6 +83,12 @@ jobs:
           restore-keys: |
             hash-cache-${{ steps.get_ref.outputs.result }}-${{ github.sha }}
             hash-cache-${{ steps.get_ref.outputs.result }}
+
+      - name: output cache info
+        run: |
+          echo "## Hash cache info" >> $GITHUB_STEP_SUMMARY
+          echo "Requested key:  ${{ steps.load_hash_cache.outputs.cache-primary-key }}" >> $GITHUB_STEP_SUMMARY
+          echo "Matched key:    ${{ steps.load_hash_cache.outputs.cache-matched-key }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Azure login with federated credentials
         uses: azure/login@v2
@@ -102,6 +111,13 @@ jobs:
       - name: examine hash cache files
         run: |
           ls -al .hashes
+      
+      - name: Save hash cache
+        id: save_hash_cache
+        uses: actions/cache/save@v4
+        with:
+          path: .hashes
+          key: hash-cache-${{ steps.get_ref.outputs.result }}-${{ github.sha }}-${{ github.event_name }}
         
   build-common:
     runs-on: ubuntu-latest
