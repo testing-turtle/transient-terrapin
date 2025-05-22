@@ -95813,6 +95813,16 @@ const workflowFile = coreExports.getInput('workflow-file', { required: true });
 const githubToken = coreExports.getInput('github-token', { required: true });
 const baseRef = coreExports.getInput('base-ref', { required: true });
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
+const workflowRef = getRequiredEnvVariable("GITHUB_WORKFLOW_REF");
+const repoWithOwner = getRequiredEnvVariable("GITHUB_REPOSITORY");
+function getWorkflowFilename() {
+    if (!workflowRef.startsWith(repoWithOwner)) {
+        coreExports.setFailed(`Workflow ref (${workflowRef} does not match current repository (${repoWithOwner})`);
+        process.exit(1);
+    }
+    const filenameWithRepo = workflowRef.split("@")[0];
+    return filenameWithRepo.slice(repoWithOwner.length + 1); // +1 for slash
+}
 console.log("==========================");
 console.log("payload", githubExports.context);
 console.log("==========================");
@@ -95902,6 +95912,7 @@ async function run() {
     //
     console.log(`Loading filter file: ${filterFile}`);
     const filters = loadFilterFile(filterFile);
+    console.log(`Auto workflow-file:    ${getWorkflowFilename()}`);
     console.log(`Loading workflow file: ${workflowFile}`);
     const jobNames = getWorkflowJobs(workflowFile);
     // if we're in a push event (i.e. building after merge), recompute the hashes
