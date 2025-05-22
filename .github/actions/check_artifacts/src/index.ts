@@ -24,7 +24,12 @@ const baseRef = core.getInput('base-ref', { required: true });
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
 
 
+console.log("==========================");
 console.log("payload", github.context);
+console.log("==========================");
+console.log("env", process.env);
+console.log("==========================");
+
 
 const azCredential = new DefaultAzureCredential();
 const blobClient = new BlobServiceClient(
