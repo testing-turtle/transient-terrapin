@@ -8,10 +8,10 @@ import path from 'path';
 import { DefaultAzureCredential } from '@azure/identity';
 import { BlobServiceClient } from "@azure/storage-blob";
 
-import { loadFilterFile, recursiveFileList } from './filter.js';
+import { Filter, loadFilterFile, recursiveFileList } from './filter.js';
 import { getWorkflowJobs } from './workflow.js';
-import { getGitChanges, getPRFiles } from './repo.js';
-import { getRequiredEnvVariable } from './wrappers.js';
+import { getFilesWithHashes, getGitChanges, getPRFiles } from './repo.js';
+import { getRequiredEnvVariable, emptyToNull } from './wrappers.js';
 
 
 const storageAccountName = core.getInput('storage-account', { required: true });
@@ -21,7 +21,13 @@ const workflowFile = core.getInput('workflow-file', { required: true });
 const githubToken = core.getInput('github-token', { required: true });
 const baseRef = core.getInput('base-ref', { required: true });
 
+const hashCalculationType = emptyToNull(core.getInput('hash-calculation-type', {required: false})) ?? "list-and-compute"
+
+// const hashCalculationType: string = "list-and-compute";
+// const hashCalculationType: string = "git-ls-tree";
+
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
+
 
 
 const azCredential = new DefaultAzureCredential();
@@ -52,7 +58,7 @@ function outputChangeFileSummary(changedFiles: string[] | null) {
     if (changedFiles.length === 0) {
       fs.appendFileSync(stepSummaryFile, `\nNone\n\n`);
     } else if (changedFiles.length > 10) {
-      fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.slice(0,10).join("\n- ")}\n- ...\n\n`);
+      fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.slice(0, 10).join("\n- ")}\n- ...\n\n`);
     } else {
       fs.appendFileSync(stepSummaryFile, `\n- ${changedFiles.join("\n- ")}\n\n`);
     }
@@ -98,6 +104,33 @@ interface JobInfo {
   artifact_exists: boolean;
 }
 
+//
+// Adding an abstraction here to allow for easily testing different approaches to calculating the hash.
+// Once done, this can be inlined to simplify the code :-)
+//
+async function getHashFunction() {
+  switch (hashCalculationType) {
+    case "list-and-compute": {
+      console.log("Using list-and-compute hash calculation");
+      const repoFiles = recursiveFileList(".");
+      function calculateHashForFilter(filter: Filter) {
+        return filter.calculateHashFromFiles(repoFiles)
+      }
+      return calculateHashForFilter;
+    }
+    case "git-ls-tree": {
+      console.log("Using git-ls-tree hash calculation");
+      const filesWithHashes = await getFilesWithHashes();
+      function calculateHashForFilter(filter: Filter) {
+        return filter.calculateHashFromFilesWithHashes(filesWithHashes)
+      }
+      return calculateHashForFilter
+    }
+    default:
+      throw new Error(`Unknown hash calculation type: ${hashCalculationType}`);
+  }
+}
+
 async function run() {
 
   //
@@ -135,7 +168,8 @@ async function run() {
   console.log("==== cached hashes ====");
   console.log(cachedHashes);
 
-  const repoFiles = recursiveFileList(".");
+  const filterHashFunction = await getHashFunction();
+
 
   outputChangeFileSummary(changedFiles);
   fs.appendFileSync(stepSummaryFile, `|Job| Has Changed Files| Hash| Artifact Key| Artifact Exists|\n`);
@@ -156,7 +190,7 @@ async function run() {
       continue;
     }
     const hasChangedFiles = changedFiles ? filter.isMatch(changedFiles) : true;
-    const hash = (!hasChangedFiles ? cachedHashes.get(jobName) : null) ?? filter.calculateHash(repoFiles);
+    const hash = (!hasChangedFiles ? cachedHashes.get(jobName) : null) ?? filterHashFunction(filter);
     saveCachedHash(jobName, hash);
     const artifactKey = `${artifactPrefix}/${jobName}_${hash}`;
     const artifactExists = await testArtifactExists(artifactKey);
@@ -169,6 +203,10 @@ async function run() {
     `\n<details>\n<summary>result JSON</summary>\n\n\`\`\`json\n${JSON.stringify(jobInfoMap, null, 2)}\n\n\`\`\`\n</details>\n`);
 
   core.setOutput("jobs", JSON.stringify(jobInfoMap));
+
+
+  console.log(hashCalculationType);
+
 }
 
 run();

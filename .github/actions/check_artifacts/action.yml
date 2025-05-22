@@ -1,5 +1,6 @@
 name: 'Check for artifacts'
 description: 'Test whether a set of artifacts exist'
+# https://docs.github.com/en/actions/sharing-automations/creating-actions/metadata-syntax-for-github-actions
 inputs:
   filter-file:
     description: Path to the file defining the job filters
@@ -19,6 +20,8 @@ inputs:
   base-ref:
     description: Base reference for the changes
     required: true
+  hash-calculation-type:
+    description: The approach to use for calculating file content hashes
 outputs:
   jobs:
     description: JSON object keyed on job name with values including whether the job's artifact exists and its artifact key

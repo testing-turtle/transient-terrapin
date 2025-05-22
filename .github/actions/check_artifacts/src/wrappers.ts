@@ -20,3 +20,10 @@ export function getRequiredEnvVariable(name: string): string {
   }
   return value;
 }
+
+export function emptyToNull(value: string) {
+  if (value === null || value ===undefined || value === ""){
+    return null;
+  }
+  return value;
+}
