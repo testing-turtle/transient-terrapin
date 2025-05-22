@@ -95813,6 +95813,7 @@ const workflowFile = coreExports.getInput('workflow-file', { required: true });
 const githubToken = coreExports.getInput('github-token', { required: true });
 const baseRef = coreExports.getInput('base-ref', { required: true });
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
+console.log("payload", githubExports.context);
 const azCredential = new DefaultAzureCredential();
 const blobClient = new BlobServiceClient(`https://${storageAccountName}.blob.core.windows.net`, azCredential);
 console.log(`Checking whether container '${containerName}' exists in storage account '${storageAccountName}'`);

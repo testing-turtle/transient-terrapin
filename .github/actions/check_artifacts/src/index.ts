@@ -24,6 +24,8 @@ const baseRef = core.getInput('base-ref', { required: true });
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
 
 
+console.log("payload", github.context);
+
 const azCredential = new DefaultAzureCredential();
 const blobClient = new BlobServiceClient(
   `https://${storageAccountName}.blob.core.windows.net`,
