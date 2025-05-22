@@ -106,7 +106,6 @@ jobs:
         uses: ./.github/actions/check_artifacts
         with:
           filter-file: ./scripts/example-filter.yaml
-          workflow-file: .github/workflows/basic.yml
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           container: artifacts # ensure this exists

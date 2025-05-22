@@ -17,7 +17,6 @@ import { getRequiredEnvVariable } from './wrappers.js';
 const storageAccountName = core.getInput('storage-account', { required: true });
 const containerName = core.getInput('container', { required: true });
 const filterFile = core.getInput('filter-file', { required: true });
-const workflowFile = core.getInput('workflow-file', { required: true });
 const githubToken = core.getInput('github-token', { required: true });
 const baseRef = core.getInput('base-ref', { required: true });
 
@@ -142,7 +141,7 @@ async function run() {
   console.log(`Loading filter file: ${filterFile}`);
   const filters = loadFilterFile(filterFile);
   
-  console.log(`Auto workflow-file:    ${getWorkflowFilename()}`)
+  const workflowFile = getWorkflowFilename();
   console.log(`Loading workflow file: ${workflowFile}`);
   const jobNames = getWorkflowJobs(workflowFile);
 

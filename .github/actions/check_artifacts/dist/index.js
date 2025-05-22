@@ -95809,7 +95809,6 @@ async function getGitChanges(targetBranch) {
 const storageAccountName = coreExports.getInput('storage-account', { required: true });
 const containerName = coreExports.getInput('container', { required: true });
 const filterFile = coreExports.getInput('filter-file', { required: true });
-const workflowFile = coreExports.getInput('workflow-file', { required: true });
 const githubToken = coreExports.getInput('github-token', { required: true });
 const baseRef = coreExports.getInput('base-ref', { required: true });
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
@@ -95912,7 +95911,7 @@ async function run() {
     //
     console.log(`Loading filter file: ${filterFile}`);
     const filters = loadFilterFile(filterFile);
-    console.log(`Auto workflow-file:    ${getWorkflowFilename()}`);
+    const workflowFile = getWorkflowFilename();
     console.log(`Loading workflow file: ${workflowFile}`);
     const jobNames = getWorkflowJobs(workflowFile);
     // if we're in a push event (i.e. building after merge), recompute the hashes

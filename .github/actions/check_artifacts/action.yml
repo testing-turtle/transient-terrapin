@@ -4,9 +4,6 @@ inputs:
   filter-file:
     description: Path to the file defining the job filters
     required: true
-  workflow-file:
-    description: Path to the workflow file
-    required: true
   storage-account:
     description: Storage account name
     required: true
