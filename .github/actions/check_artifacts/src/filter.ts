@@ -2,6 +2,8 @@ import fs from 'fs';
 import crypto from 'crypto';
 import yaml from 'yaml';
 
+import { FileWithHash } from './repo.js';
+
 /**
  * PathFilter class equivalent to the Python PathFilter
  */
@@ -123,11 +125,11 @@ class Filter {
   }
 
   /**
-   * Calculate hash based on the files that match the filter
+   * Calculate hash based on the files that match the filter. The returned value is the hash of the names and contents of files that match the filter.
    * @param {string[]} files - List of files to check
    * @returns {string} - Hash digest
    */
-  calculateHash(files : string[]) {
+  calculateHashFromFiles(files: string[]) {
     if (this._cachedHash !== null) {
       console.log(`Filter '${this._nameExpression}' hash already calculated: ${this._cachedHash}`);
       return this._cachedHash;
@@ -147,6 +149,42 @@ class Filter {
           // Read and hash file contents
           const fileContent = fs.readFileSync(file);
           hash.update(fileContent);
+          break;
+        }
+      }
+    }
+    console.log(`::endgroup::`);
+
+    const hashValue = hash.digest('hex');
+    console.log(`Filter '${this._nameExpression}' hash: ${hashValue}`);
+    this._cachedHash = hashValue;
+    return hashValue;
+  }
+
+  /**
+   * Calculate hash based on the files with hashes that match the filter. The returned value is the hash of the name and hash of files that match the filter.
+   * @param {FileWithHash[]} filesWithHashes - List of files with hashes to check
+   * @returns {string} - Hash digest
+   */
+  calculateHashFromFilesWithHashes(filesWithHashes: FileWithHash[]) {
+    if (this._cachedHash !== null) {
+      console.log(`Filter '${this._nameExpression}' hash already calculated: ${this._cachedHash}`);
+      return this._cachedHash;
+    }
+
+    // Create a SHA-1 hash
+    const hash = crypto.createHash('sha1');
+
+    console.log(`::group::Hash files for filter '${this._nameExpression}'`);
+    for (const file of filesWithHashes) {
+      for (const pathFilter of this._files) {
+        if (pathFilter.regex.test(file.filename)) {
+          // Add the filename to the hash
+          hash.update(file.filename);
+          console.log(`- ${file.filename}`);
+
+          // Read and hash file contents
+          hash.update(file.hash);
           break;
         }
       }

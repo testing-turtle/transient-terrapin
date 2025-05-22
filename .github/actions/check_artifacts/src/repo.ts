@@ -30,3 +30,19 @@ export async function getGitChanges(targetBranch: string): Promise<string[] | nu
 		return null;
 	}
 }
+
+export interface FileWithHash {
+	filename: string;
+	hash: string;
+}
+export async function getFilesWithHashes(ref?: string, root?: string): Promise<FileWithHash[]> {
+	const command = `git ls-tree -r --format="%(objectname) %(path)" ${ref ?? "HEAD"} ${root ?? "."}`;
+	const { stdout } = await exec(command);
+	const filesWithHashes = stdout.split('\n').filter(line => line.trim() !== '').map(
+		line => {
+			const [hash, filename] = line.split(' ');
+			return { filename, hash };
+		}
+	);
+	return filesWithHashes;
+}

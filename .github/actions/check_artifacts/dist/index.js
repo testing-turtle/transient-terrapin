@@ -95635,11 +95635,11 @@ class Filter {
         return result;
     }
     /**
-     * Calculate hash based on the files that match the filter
+     * Calculate hash based on the files that match the filter. The returned value is the hash of the names and contents of files that match the filter.
      * @param {string[]} files - List of files to check
      * @returns {string} - Hash digest
      */
-    calculateHash(files) {
+    calculateHashFromFiles(files) {
         if (this._cachedHash !== null) {
             console.log(`Filter '${this._nameExpression}' hash already calculated: ${this._cachedHash}`);
             return this._cachedHash;
@@ -95656,6 +95656,37 @@ class Filter {
                     // Read and hash file contents
                     const fileContent = fs__default.readFileSync(file);
                     hash.update(fileContent);
+                    break;
+                }
+            }
+        }
+        console.log(`::endgroup::`);
+        const hashValue = hash.digest('hex');
+        console.log(`Filter '${this._nameExpression}' hash: ${hashValue}`);
+        this._cachedHash = hashValue;
+        return hashValue;
+    }
+    /**
+     * Calculate hash based on the files with hashes that match the filter. The returned value is the hash of the name and hash of files that match the filter.
+     * @param {FileWithHash[]} filesWithHashes - List of files with hashes to check
+     * @returns {string} - Hash digest
+     */
+    calculateHashFromFilesWithHashes(filesWithHashes) {
+        if (this._cachedHash !== null) {
+            console.log(`Filter '${this._nameExpression}' hash already calculated: ${this._cachedHash}`);
+            return this._cachedHash;
+        }
+        // Create a SHA-1 hash
+        const hash = crypto$1.createHash('sha1');
+        console.log(`::group::Hash files for filter '${this._nameExpression}'`);
+        for (const file of filesWithHashes) {
+            for (const pathFilter of this._files) {
+                if (pathFilter.regex.test(file.filename)) {
+                    // Add the filename to the hash
+                    hash.update(file.filename);
+                    console.log(`- ${file.filename}`);
+                    // Read and hash file contents
+                    hash.update(file.hash);
                     break;
                 }
             }
@@ -95778,6 +95809,12 @@ function getRequiredEnvVariable(name) {
     }
     return value;
 }
+function emptyToNull(value) {
+    if (value === null || value === undefined || value === "") {
+        return null;
+    }
+    return value;
+}
 
 async function getPRFiles(githubToken) {
     const prNumber = githubExports.context.payload.pull_request?.number;
@@ -95805,6 +95842,15 @@ async function getGitChanges(targetBranch) {
         return null;
     }
 }
+async function getFilesWithHashes(ref, root) {
+    const command = `git ls-tree -r --format="%(objectname) %(path)" ${"HEAD"} ${"."}`;
+    const { stdout } = await exec(command);
+    const filesWithHashes = stdout.split('\n').filter(line => line.trim() !== '').map(line => {
+        const [hash, filename] = line.split(' ');
+        return { filename, hash };
+    });
+    return filesWithHashes;
+}
 
 const storageAccountName = coreExports.getInput('storage-account', { required: true });
 const containerName = coreExports.getInput('container', { required: true });
@@ -95812,6 +95858,9 @@ const filterFile = coreExports.getInput('filter-file', { required: true });
 const workflowFile = coreExports.getInput('workflow-file', { required: true });
 const githubToken = coreExports.getInput('github-token', { required: true });
 const baseRef = coreExports.getInput('base-ref', { required: true });
+const hashCalculationType = emptyToNull(coreExports.getInput('hash-calculation-type', { required: false })) ?? "list-and-compute";
+// const hashCalculationType: string = "list-and-compute";
+// const hashCalculationType: string = "git-ls-tree";
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
 const azCredential = new DefaultAzureCredential();
 const blobClient = new BlobServiceClient(`https://${storageAccountName}.blob.core.windows.net`, azCredential);
@@ -95875,6 +95924,32 @@ async function testArtifactExists(artifactKey) {
     const exists = await containerClient.getBlobClient(blobName).exists();
     return exists;
 }
+//
+// Adding an abstraction here to allow for easily testing different approaches to calculating the hash.
+// Once done, this can be inlined to simplify the code :-)
+//
+async function getHashFunction() {
+    switch (hashCalculationType) {
+        case "list-and-compute": {
+            console.log("Using list-and-compute hash calculation");
+            const repoFiles = recursiveFileList(".");
+            function calculateHashForFilter(filter) {
+                return filter.calculateHashFromFiles(repoFiles);
+            }
+            return calculateHashForFilter;
+        }
+        case "git-ls-tree": {
+            console.log("Using git-ls-tree hash calculation");
+            const filesWithHashes = await getFilesWithHashes();
+            function calculateHashForFilter(filter) {
+                return filter.calculateHashFromFilesWithHashes(filesWithHashes);
+            }
+            return calculateHashForFilter;
+        }
+        default:
+            throw new Error(`Unknown hash calculation type: ${hashCalculationType}`);
+    }
+}
 async function run() {
     //
     // The goal of this action is to determine which job artifacts already exist
@@ -95906,7 +95981,7 @@ async function run() {
     const cachedHashes = getCachedHashes();
     console.log("==== cached hashes ====");
     console.log(cachedHashes);
-    const repoFiles = recursiveFileList(".");
+    const filterHashFunction = await getHashFunction();
     outputChangeFileSummary(changedFiles);
     fs__default.appendFileSync(stepSummaryFile, `|Job| Has Changed Files| Hash| Artifact Key| Artifact Exists|\n`);
     fs__default.appendFileSync(stepSummaryFile, `|---|---|---|---|---|\n`);
@@ -95925,7 +96000,7 @@ async function run() {
             continue;
         }
         const hasChangedFiles = changedFiles ? filter.isMatch(changedFiles) : true;
-        const hash = (!hasChangedFiles ? cachedHashes.get(jobName) : null) ?? filter.calculateHash(repoFiles);
+        const hash = (!hasChangedFiles ? cachedHashes.get(jobName) : null) ?? filterHashFunction(filter);
         saveCachedHash(jobName, hash);
         const artifactKey = `${artifactPrefix}/${jobName}_${hash}`;
         const artifactExists = await testArtifactExists(artifactKey);
@@ -95934,6 +96009,7 @@ async function run() {
     }
     fs__default.appendFileSync(stepSummaryFile, `\n<details>\n<summary>result JSON</summary>\n\n\`\`\`json\n${JSON.stringify(jobInfoMap, null, 2)}\n\n\`\`\`\n</details>\n`);
     coreExports.setOutput("jobs", JSON.stringify(jobInfoMap));
+    console.log(hashCalculationType);
 }
 run();
 
