@@ -17,11 +17,29 @@ import { getRequiredEnvVariable } from './wrappers.js';
 const storageAccountName = core.getInput('storage-account', { required: true });
 const containerName = core.getInput('container', { required: true });
 const filterFile = core.getInput('filter-file', { required: true });
-const workflowFile = core.getInput('workflow-file', { required: true });
 const githubToken = core.getInput('github-token', { required: true });
 const baseRef = core.getInput('base-ref', { required: true });
 
 const stepSummaryFile = getRequiredEnvVariable("GITHUB_STEP_SUMMARY");
+const workflowRef = getRequiredEnvVariable("GITHUB_WORKFLOW_REF");
+const repoWithOwner = getRequiredEnvVariable("GITHUB_REPOSITORY");
+
+
+function getWorkflowFilename() {
+  if (!workflowRef.startsWith(repoWithOwner) ){
+    core.setFailed(`Workflow ref (${workflowRef} does not match current repository (${repoWithOwner})`);
+    process.exit(1);
+  }
+  const filenameWithRepo = workflowRef.split("@")[0];
+  return filenameWithRepo.slice(repoWithOwner.length + 1); // +1 for slash
+}
+
+
+console.log("==========================");
+console.log("payload", github.context);
+console.log("==========================");
+console.log("env", process.env);
+console.log("==========================");
 
 
 const azCredential = new DefaultAzureCredential();
@@ -122,7 +140,8 @@ async function run() {
 
   console.log(`Loading filter file: ${filterFile}`);
   const filters = loadFilterFile(filterFile);
-
+  
+  const workflowFile = getWorkflowFilename();
   console.log(`Loading workflow file: ${workflowFile}`);
   const jobNames = getWorkflowJobs(workflowFile);
 

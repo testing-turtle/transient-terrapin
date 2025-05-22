@@ -1,4 +1,4 @@
-name: basic
+name: basic - workflow
 
 on:
   push:
@@ -28,6 +28,10 @@ jobs:
       - name: Show event info
         run: |
           echo '${{ toJson(github)}}'
+
+      - name: Show env vars
+        run: |
+          printenv | sort
 
       - name: Get ref for cache
         id: get_ref
@@ -102,7 +106,6 @@ jobs:
         uses: ./.github/actions/check_artifacts
         with:
           filter-file: ./scripts/example-filter.yaml
-          workflow-file: .github/workflows/basic.yml
           storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           container: artifacts # ensure this exists
