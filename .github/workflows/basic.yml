@@ -35,7 +35,7 @@ jobs:
 
       - name: pr2
         run: |
-          echo pr2
+          echo pr2 - part 2
 
       - name: Get ref for cache
         id: get_ref
