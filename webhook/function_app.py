@@ -18,7 +18,6 @@ if not secret_token:
     raise ValueError("WEBHOOK_SECRET environment variable is not set.")
 
 
-
 # https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries
 # https://github.com/github/docs/blob/main/content/webhooks/using-webhooks/validating-webhook-deliveries.md
 
@@ -41,13 +40,15 @@ def verify_signature(payload_body, secret_token, headers):
     signature_header = headers.get('x-hub-signature-256') if headers else None
     if not signature_header:
         return 403, "x-hub-signature-256 header is missing!"
-    hash_object = hmac.new(secret_token.encode('utf-8'), msg=payload_body, digestmod=hashlib.sha256)
+    hash_object = hmac.new(secret_token.encode(
+        'utf-8'), msg=payload_body, digestmod=hashlib.sha256)
     expected_signature = "sha256=" + hash_object.hexdigest()
     if not hmac.compare_digest(expected_signature, signature_header):
         return 403, "Request signatures didn't match!"
-    
+
     return None, None
-    
+
+
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
 
@@ -57,10 +58,11 @@ def ping(req: func.HttpRequest) -> func.HttpResponse:
 
     return func.HttpResponse("pong", status_code=200)
 
+
 @app.route(route="{ignored:maxlength(0)?}")
 def webhook(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Webhook triggered.')
-    
+
     body = req.get_body()
 
     verify_signature_status, verify_message = verify_signature(
@@ -76,8 +78,48 @@ def webhook(req: func.HttpRequest) -> func.HttpResponse:
 
     logging.info(f'Got webhook event. Type: {event}. Payload: {body}')
 
-    logger.info("Hello World!", extra={"microsoft.custom_event.name": "webhook", "event": event})
+    body_json = req.get_json()
+    if event == "workflow_run":
+        # https://docs.github.com/en/webhooks/webhook-events-and-payloads?actionType=in_progress#workflow_run
+        id = body_json.get("workflow_run", {}).get("id")
+        action = body_json.get("action")
+        run_event = body_json.get("workflow_run", {}).get("event")
+        name = body_json.get("workflow_run", {}).get("name")
+        conclusion = body_json.get("workflow_run", {}).get("conclusion")
+        logger.info(f"Workflow run {id} {action}",
+                    extra={
+                        "microsoft.custom_event.name": "webhook",
+                        "event": event,
+                        "run_id": id,
+                        "action": action,
+                        "run_event": run_event,
+                        "workflow_name": name,
+                        "conclusion": conclusion or ""
+        })
+    elif event == "workflow_job":
+        # https://docs.github.com/en/webhooks/webhook-events-and-payloads#workflow_job
+        id = body_json.get("workflow_job", {}).get("id")
+        action = body_json.get("action")
+        run_id = body_json.get("workflow_job", {}).get("run_id")
+        runner_id = body_json.get("workflow_job", {}).get("runner_id")
+        conclusion = body_json.get("workflow_job", {}).get("conclusion")
+        run_attempt = body_json.get("workflow_job", {}).get("run_attempt")
+        name = body_json.get("workflow_job", {}).get("name")
+        logger.info(f"Workflow job {id} {action}",
+                    extra={
+                        "microsoft.custom_event.name": "webhook",
+                        "event": event,
+                        "job_id": id,
+                        "action": action,
+                        "run_id": run_id,
+                        "runner_id": runner_id,
+                        "conclusion": conclusion or "",
+                        "run_attempt": run_attempt,
+                        "job_name": name
+        })
+    else:
+        # unknown event
+        logger.warning(f"Unknown event type: {event}. Payload: {body_json}")
 
 
     return func.HttpResponse("Webhook received", status_code=200)
-
