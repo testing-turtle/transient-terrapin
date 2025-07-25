@@ -5,6 +5,7 @@ import logging
 import os
 
 from azure.monitor.opentelemetry import configure_azure_monitor
+from opentelemetry import trace
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,6 +13,7 @@ configure_azure_monitor(
     logger_name="gh-webhook"
 )
 logger = logging.getLogger("gh-webhook")
+tracer = trace.get_tracer("gh-webhook")
 
 secret_token = os.getenv("WEBHOOK_SECRET")
 if not secret_token:
@@ -59,6 +61,9 @@ def ping(req: func.HttpRequest) -> func.HttpResponse:
     return func.HttpResponse("pong", status_code=200)
 
 
+workflow_run_spans = {} # store workflow run spans keyed on run_id
+workflow_job_spans = {} # store workflow job spans keyed on job_id
+
 @app.route(route="{ignored:maxlength(0)?}")
 def webhook(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Webhook triggered.')
@@ -79,6 +84,11 @@ def webhook(req: func.HttpRequest) -> func.HttpResponse:
     logging.info(f'Got webhook event. Type: {event}. Payload: {body}')
 
     body_json = req.get_json()
+    
+    # NOTE: this is experimental code and is likely buggy!
+    # For example, it currently assumes that events are delivered in order,
+    # which is likely not the case in practice.
+
     if event == "workflow_run":
         # https://docs.github.com/en/webhooks/webhook-events-and-payloads?actionType=in_progress#workflow_run
         id = body_json.get("workflow_run", {}).get("id")
@@ -86,6 +96,25 @@ def webhook(req: func.HttpRequest) -> func.HttpResponse:
         run_event = body_json.get("workflow_run", {}).get("event")
         name = body_json.get("workflow_run", {}).get("name")
         conclusion = body_json.get("workflow_run", {}).get("conclusion")
+        if action == "in_progress":
+            # Start a new span for the workflow run
+            span = tracer.start_span(f"Workflow Run {id} {action}",
+                                     kind=trace.SpanKind.SERVER,
+                                     attributes={
+                                         "run_id": id,
+                                         "event": run_event,
+                                         "workflow_name": name,
+                                         "type": "workflow_run"
+                                     })
+            workflow_run_spans[id] = span
+        else:
+            # End the span for the workflow run if it exists
+            span = workflow_run_spans.pop(id, None)
+            if span:
+                span.set_attribute("conclusion", conclusion or "")
+                span.end()
+        
+        # TODO - ideally the event would be added within the span context.
         logger.info(f"Workflow run {id} {action}",
                     extra={
                         "microsoft.custom_event.name": "webhook",
@@ -105,6 +134,49 @@ def webhook(req: func.HttpRequest) -> func.HttpResponse:
         conclusion = body_json.get("workflow_job", {}).get("conclusion")
         run_attempt = body_json.get("workflow_job", {}).get("run_attempt")
         name = body_json.get("workflow_job", {}).get("name")
+
+        
+        workflow_run_span = workflow_run_spans.get(run_id) # TODO - handle not existing
+        if action == "queued":
+            # Start a new span for the workflow job
+            span = tracer.start_span(f"Workflow Job {id} {action}", 
+                                     context=trace.set_span_in_context(workflow_run_span),
+                                     kind=trace.SpanKind.CLIENT,
+                                     attributes={
+                                         "job_id": id,
+                                         "run_id": run_id,
+                                         "action": action,
+                                         "run_attempt": run_attempt,
+                                         "job_name": name,
+                                         "type": "workflow_job"
+                                     })
+            workflow_job_spans[id] = span
+        elif action == "in_progress":
+            # End the queued span and start a new one for in_progress
+            span = workflow_job_spans.get(id)
+            if span:
+                span.end()
+            span = tracer.start_span(f"Workflow Job {id} {action}", 
+                                     context=trace.set_span_in_context(workflow_run_span),
+                                     kind=trace.SpanKind.CLIENT,
+                                     attributes={
+                                         "job_id": id,
+                                         "run_id": run_id,
+                                         "action": action,
+                                         "run_attempt": run_attempt,
+                                         "job_name": name,
+                                         "runner_id": runner_id,
+                                         "type": "workflow_job"
+                                     })
+            workflow_job_spans[id] = span
+        elif action == "completed":
+            span = workflow_job_spans.get(id)
+            if span:
+                span.set_attribute("conclusion", conclusion or "")
+                span.end()
+        else:
+            logger.warning(f"Unknown action {action} for workflow job {id}. Payload: {body_json}")
+
         logger.info(f"Workflow job {id} {action}",
                     extra={
                         "microsoft.custom_event.name": "webhook",
@@ -112,7 +184,7 @@ def webhook(req: func.HttpRequest) -> func.HttpResponse:
                         "job_id": id,
                         "action": action,
                         "run_id": run_id,
-                        "runner_id": runner_id,
+                        "runner_id": runner_id or "",
                         "conclusion": conclusion or "",
                         "run_attempt": run_attempt,
                         "job_name": name
