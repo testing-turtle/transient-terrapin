@@ -1,7 +1,15 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Python Debugger: Current File",
+			"type": "debugpy",
+			"request": "launch",
+			"program": "${file}",
+			"console": "integratedTerminal",
+			"justMyCode": false
+		},
+		{
 			"type": "node",
 			"request": "launch",
 			"name": "Debug Check-Artifacts Action",
@@ -24,15 +32,15 @@
 				"GITHUB_STEP_SUMMARY": "/tmp/github_step_summary.txt"
 			}
 		},
-    {
-      "name": "Attach to Python Functions",
-      "type": "debugpy",
-      "request": "attach",
-      "connect": {
-        "host": "localhost",
-        "port": 9091
-      },
-      "preLaunchTask": "func: host start"
-    }
-  ]
+		{
+			"name": "Attach to Python Functions",
+			"type": "debugpy",
+			"request": "attach",
+			"connect": {
+				"host": "localhost",
+				"port": 9091
+			},
+			"preLaunchTask": "func: host start"
+		}
+	]
 }
