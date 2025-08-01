@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
 from typing import Union
 
+print("Starting...")
 load_dotenv()
 configure_azure_monitor(
     logger_name="gh-webhook"
@@ -17,6 +18,24 @@ configure_azure_monitor(
 logger = logging.getLogger("gh-webhook")
 tracer = trace.get_tracer("gh-webhook")
 
+logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:\t%(message)s')
+
+logging.getLogger("azure.core").setLevel(logging.WARNING)
+logging.getLogger("azure.monitor").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+# console_handler = logging.StreamHandler()
+# console_handler.setLevel(logging.DEBUG)
+
+# # Create a formatter and set it for the handler
+# formatter = logging.Formatter('%(levelname)s:\t%(message)s')
+# console_handler.setFormatter(formatter)
+
+# # Add the handler to the logger
+# logger.addHandler(console_handler)
+
+
+logger.setLevel(logging.DEBUG)
 os.environ["OTEL_RESOURCE_ATTRIBUTES"] = "service.namespace=gh-webhook,service.instance.id=an_instance"
 
 secret_token = os.getenv("WEBHOOK_SECRET")
@@ -53,6 +72,7 @@ workflow_job_spans: dict[str, trace.Span] = {}
 
 @app.get("/ping")
 def ping():
+    logger.info("Ping received.")
     return {"Hello": "World"}
 
 
@@ -136,7 +156,6 @@ async def webhook(req: Request, resp: Response):
             resp.status_code = 500
             return {"message": f"Span for workflow run {run_key} not found. This is unexpected."}
 
-
         logger.info("### workflow_run event. ID: %s, TraceID: %s, Action: %s",
                     run_key, span.get_span_context().trace_id, action)
 
@@ -191,7 +210,6 @@ async def webhook(req: Request, resp: Response):
         # unknown event
         logger.warning(f"Unknown event type: {event}. Payload: {body_json}")
 
-    
     resp.status_code = 200
     return {"message": f"Webhook event {event} processed successfully."}
 
