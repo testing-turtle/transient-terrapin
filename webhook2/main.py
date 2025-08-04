@@ -234,9 +234,10 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
                 lock=asyncio.Lock(),
                 span=span,
             )
-            logger.info(f"Creating new workflow run state for {run_key}.")
             run_state, created = await webhook_state.add_workflow_run_state(run_id=id, run_attempt=run_attempt, state=run_state)
-            if not created:
+            if created:
+                logger.info(f"Created new workflow run state for {run_key}.")
+            else:
                 logger.info(
                     f"Workflow run state for {run_key} already exists. Ignoring event.")
                 return 200, {"message": f"Workflow run state for {run_key} already exists. Ignoring event."}
@@ -283,7 +284,7 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
             else:
                 complete_span = True
                 logger.info(
-                    f"*** marking to end span for workflow run {run_key} {action} ***")
+                    f"Marking to end span for workflow run {run_key} {action} ***")
                     
             process_workflow_run_event(run_state, id, run_attempt, action, run_event, name, conclusion, complete_span)
 
@@ -308,7 +309,7 @@ def process_workflow_run_event(run_state: WorkflowRunState, run_id: str, run_att
             f"Span for workflow run {run_key} not found. This is unexpected.")
         return 500, {"message": f"Span for workflow run {run_key} not found. This is unexpected."}
 
-    logger.info("### workflow_run event. ID: %s, TraceID: %s, Action: %s",
+    logger.debug("### workflow_run event. ID: %s, TraceID: %s, Action: %s",
                 run_key, run_state.span.get_span_context().trace_id, action)
 
     with trace.use_span(run_state.span, end_on_exit=complete_span) as span:
@@ -321,6 +322,7 @@ def process_workflow_run_event(run_state: WorkflowRunState, run_id: str, run_att
             # Clear the queued events after processing
             run_state.queued_job_events.clear()
 
+        # Create a Custom Event for the workflow run
         logger.info(f"Workflow run {run_key} {action}",
                     extra={
                         "microsoft.custom_event.name": "webhook",
@@ -371,7 +373,7 @@ async def handle_workflow_job_event(body_json: Any) -> tuple[int, dict]:
             run_state.queued_job_events.append(body_json)
             return 200, {"message": f"Workflow run span for run_id {run_key} not found. Storing event for later processing."}
 
-        logger.info("### workflow_job event. Run ID: %s, Run TraceID: %s",
+        logger.debug("### workflow_job event. Run ID: %s, Run TraceID: %s",
                     run_key, workflow_run_span.get_span_context().trace_id)
 
         with trace.use_span(workflow_run_span, end_on_exit=False) as workflow_run_span:
@@ -416,13 +418,13 @@ def process_workflow_job_event(body_json, workflow_run_state: WorkflowRunState):
             "job_name": name,
             "type": "workflow_job"
         })
-        logger.info(f"*** starting span for workflow job {id} queued ***")
+        logger.info(f"Starting span for workflow job {id} queued ***")
         workflow_run_state.job_spans[id] = span
     elif action == "in_progress":
         # End the queued span and start a new one for in_progress
         span = workflow_run_state.job_spans.get(id)
         if span:
-            logger.info(f"*** ending span for workflow job {id} queued ***")
+            logger.info(f"Ending span for workflow job {id} queued ***")
             span.end()
         span = tracer.start_span(f"Workflow Job {id} running",
                                  kind=trace.SpanKind.CLIENT,
@@ -436,7 +438,7 @@ def process_workflow_job_event(body_json, workflow_run_state: WorkflowRunState):
             "runner_id": runner_id,
             "type": "workflow_job"
         })
-        logger.info(f"*** starting span for workflow job {id} in_progress ***")
+        logger.info(f"Starting span for workflow job {id} in_progress ***")
         workflow_run_state.job_spans[id] = span
     elif action == "completed":
         if conclusion == "skipped":
@@ -449,7 +451,7 @@ def process_workflow_job_event(body_json, workflow_run_state: WorkflowRunState):
             span.set_attribute("conclusion", conclusion or "")
             end_on_exit = True
             logger.info(
-                f"*** marking to end span for workflow job {id} completed ***")
+                f"Marking to end span for workflow job {id} completed ***")
     else:
         logger.warning(
             f"Unknown action {action} for workflow job {id}. Payload: {body_json}")
@@ -459,7 +461,7 @@ def process_workflow_job_event(body_json, workflow_run_state: WorkflowRunState):
             f"Span for workflow job {id} not found. This is unexpected.")
         return
 
-    logger.info("### workflow_job event. ID: %s, TraceID: %s, Action: %s",
+    logger.debug("### workflow_job event. ID: %s, TraceID: %s, Action: %s",
                 id, span.get_span_context().trace_id, action)
 
     with trace.use_span(span, end_on_exit=end_on_exit) as span:
@@ -481,7 +483,7 @@ def process_workflow_job_event(body_json, workflow_run_state: WorkflowRunState):
         # If the span is ending, we can remove it from the jobs for the workflow run
         workflow_run_state.current_jobs.discard(id)
         logger.info(
-            f"!!! Workflow run {run_key} has {len(workflow_run_state.current_jobs)} jobs running. [discarded {id}]")
+            f"Workflow run {run_key} has {len(workflow_run_state.current_jobs)} jobs running. [discarded {id}]")
         if len(workflow_run_state.current_jobs) == 0 and workflow_run_state.can_complete:
             # If there are no more jobs running for this workflow run, we can mark it as complete
             logger.info(
@@ -494,4 +496,4 @@ def process_workflow_job_event(body_json, workflow_run_state: WorkflowRunState):
     else:
         workflow_run_state.current_jobs.add(id)
         logger.info(
-            f"!!! Workflow run {run_key} has {len(workflow_run_state.current_jobs)} jobs running. [added {id}]")
+            f"Workflow run {run_key} has {len(workflow_run_state.current_jobs)} jobs running. [added {id}]")
