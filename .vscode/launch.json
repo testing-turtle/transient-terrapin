@@ -41,6 +41,28 @@
 				"port": 9091
 			},
 			"preLaunchTask": "func: host start"
+		},
+		{
+			"name": "Webhook2",
+			"type": "debugpy",
+			"request": "launch",
+			"module": "uvicorn",
+			"args": [
+				"main:app",
+				"--reload",
+				"--host",
+				"0.0.0.0",
+				"--port",
+				"7071",
+				"--log-level",
+				"debug"
+			],
+			"envFile": "${workspaceFolder}/webhook2/.env",
+			"env": {
+				"OTEL_PYTHON_DISABLED_INSTRUMENTATIONS": "psycopg2"
+			},
+			"console": "integratedTerminal",
+			"cwd": "${workspaceFolder}/webhook2",
 		}
 	]
 }
