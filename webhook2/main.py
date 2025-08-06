@@ -1,6 +1,5 @@
 import asyncio
 from dataclasses import dataclass, field
-import json
 import hashlib
 import hmac
 import logging
@@ -14,7 +13,13 @@ from typing import Any, Union
 
 print("Starting...")
 load_dotenv()
-os.environ["OTEL_RESOURCE_ATTRIBUTES"] = "service.namespace=gh-webhook,service.instance.id=an_instance"
+
+# https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-configuration?tabs=python#set-the-cloud-role-name-and-the-cloud-role-instance
+if not os.getenv("OTEL_RESOURCE_ATTRIBUTES"):
+    os.environ["OTEL_RESOURCE_ATTRIBUTES"] = "service.namespace=gh-webhook,service.instance.id=an_instance"
+if not os.getenv("OTEL_SERVICE_NAME"):
+    os.environ["OTEL_SERVICE_NAME"] = "gh-webhook"
+
 configure_azure_monitor(
     logger_name="gh-webhook"
 )
@@ -26,16 +31,6 @@ logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:\t%(message)s')
 logging.getLogger("azure.core").setLevel(logging.WARNING)
 logging.getLogger("azure.monitor").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
-
-# console_handler = logging.StreamHandler()
-# console_handler.setLevel(logging.DEBUG)
-
-# # Create a formatter and set it for the handler
-# formatter = logging.Formatter('%(levelname)s:\t%(message)s')
-# console_handler.setFormatter(formatter)
-
-# # Add the handler to the logger
-# logger.addHandler(console_handler)
 
 
 logger.setLevel(logging.DEBUG)
@@ -182,6 +177,7 @@ def verify_signature(payload_body, secret_token, headers):
         return 403, "Request signatures didn't match!"
 
     return None, None
+
 
 
 async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
