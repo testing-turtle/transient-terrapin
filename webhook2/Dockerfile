@@ -23,7 +23,7 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 # Copy application code
-COPY main.py .
+COPY . .
 
 # # Create a non-root user for security
 # RUN adduser --disabled-password --gecos '' --uid 1000 appuser && \
@@ -39,5 +39,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     # CMD python -c "import requests; requests.get('http://localhost:8000/ping')" || exit 1
 
 # Command to run the application
-ENV OTEL_PYTHON_DISABLED_INSTRUMENTATIONS="psycopg2" 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
+CMD ["uvicorn", "main2:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info"]
