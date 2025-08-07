@@ -1,119 +1,23 @@
 from datetime import datetime
-import json
-import hashlib
-import hmac
 import logging
 import os
 
-from azure.monitor.opentelemetry.exporter import AzureMonitorTraceExporter
-from azure.monitor.opentelemetry.exporter import AzureMonitorTraceExporter, AzureMonitorLogExporter
-from opentelemetry._logs import set_logger_provider
-from opentelemetry.sdk._logs import (
-    LoggerProvider,
-    LoggingHandler,
-)
-from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry import trace
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
 from typing import Any
+from telemetry import configure_telemetry, parse_date_time, to_ns_time_value
+from github_webhook import verify_signature
 
 print("Starting...")
 load_dotenv()
 
-
-# https://learn.microsoft.com/en-us/azure/azure-monitor/app/opentelemetry-configuration?tabs=python#set-the-cloud-role-name-and-the-cloud-role-instance
-if not os.getenv("OTEL_RESOURCE_ATTRIBUTES"):
-    os.environ["OTEL_RESOURCE_ATTRIBUTES"] = "service.namespace=gh-webhook,service.instance.id=an_instance"
-if not os.getenv("OTEL_SERVICE_NAME"):
-    os.environ["OTEL_SERVICE_NAME"] = "gh-webhook"
-
-
-class CustomTraceExporter(AzureMonitorTraceExporter):
-    """
-    A custom trace exporter that extends AzureMonitorTraceExporter to modify the span to envelope conversion.
-    This allows correlating the spans with workflow runs and jobs without needing to preserve the original spans in memory.
-    """
-
-    def _span_to_envelope(self, span):
-        envelope = super()._span_to_envelope(span)
-        # Add custom logic here if needed
-        # print(f"Custom envelope for span: {span.name}. OperationId: {envelope.tags.get('ai.operation.id')}, Parent Id: {envelope.tags.get('ai.operation.parentId')}")
-        print(json.dumps(envelope.tags, indent=2))
-        # print(envelope)
-        # print(envelope.data)
-        # print(envelope.data.base_data)
-        properties = envelope.data.base_data.properties
-        run_id = properties.get("run_id", None)
-        run_attempt = properties.get("run_attempt", None)
-        if run_id and run_attempt:
-            run_key = f"{run_id}#{run_attempt}"
-            # we've got a run or a job
-            # set the operation id to the run key
-            envelope.tags["ai.operation.id"] = run_key
-            job_id = properties.get("job_id", None)
-            if job_id:
-                # Got a job
-                # set the parent id to the run key
-                envelope.tags["ai.operation.parentId"] = run_key
-                print(f"RunId: {run_id}\tJob ID: {job_id}")
-            else:
-                # No job id, so this is a run
-                # set the ID to the run key (so that it can be used as a parent for jobs)
-                envelope.data.base_data.id = run_key
-                print(f"RunId: {run_id}\tNo Job ID")
-
-        print(
-            f"## envelope: OperationID: {envelope.tags.get('ai.operation.id')}\tID: {envelope.data.base_data.id}\tOperationParentId: {envelope.tags.get('ai.operation.parentId')} - SpanName: {span.name}")
-        return envelope
-
-    def _span_events_to_envelopes(self, span):
-        envelopes = super()._span_events_to_envelopes(span)
-        # Add custom logic here if needed
-        print(f"Custom envelopes for span events: {span.name}")
-        return envelopes
-
-
-# https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/monitor/azure-monitor-opentelemetry-exporter
-logger_provider = LoggerProvider()
-set_logger_provider(logger_provider)
-log_exporter = AzureMonitorLogExporter(
-    connection_string=os.environ["APPLICATIONINSIGHTS_CONNECTION_STRING"]
-)
-logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
-
-# Attach LoggingHandler to namespaced logger
-handler = LoggingHandler()
-logger = logging.getLogger(__name__)
-logger.addHandler(handler)
-logger.setLevel(logging.NOTSET)
-
-
-tracer_provider = TracerProvider()
-trace.set_tracer_provider(tracer_provider)
-tracer = trace.get_tracer(__name__)
-# This is the exporter that sends data to Application Insights
-# trace_exporter = AzureMonitorTraceExporter(
-trace_exporter = CustomTraceExporter(
-    connection_string=os.environ["APPLICATIONINSIGHTS_CONNECTION_STRING"]
-)
-span_processor = BatchSpanProcessor(trace_exporter)
-# trace.get_tracer_provider().add_span_processor(span_processor)
-tracer_provider.add_span_processor(span_processor)
-
+configure_telemetry()
 
 logger = logging.getLogger("gh-webhook")
+logger.setLevel(logging.DEBUG)
 tracer = trace.get_tracer("gh-webhook")
 
-logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:\t%(message)s')
-
-logging.getLogger("azure.core").setLevel(logging.WARNING)
-logging.getLogger("azure.monitor").setLevel(logging.WARNING)
-logging.getLogger("urllib3").setLevel(logging.WARNING)
-
-logger.setLevel(logging.DEBUG)
 
 secret_token = os.getenv("WEBHOOK_SECRET")
 if not secret_token:
@@ -181,37 +85,6 @@ async def webhook(req: Request, resp: Response):
     return {"message": f"Webhook event {event} processed successfully."}
 
 
-def verify_signature(payload_body, secret_token, headers):
-    """Verify that the payload was sent from GitHub by validating SHA256.
-
-    Raise and return 403 if not authorized.
-
-    Args:
-        payload_body: original request body to verify (request.body())
-        secret_token: GitHub app webhook token (WEBHOOK_SECRET)
-        signature_header: header received from GitHub (x-hub-signature-256)
-    """
-
-    signature_header = headers.get('x-hub-signature-256') if headers else None
-    if not signature_header:
-        return 403, "x-hub-signature-256 header is missing!"
-    hash_object = hmac.new(secret_token.encode(
-        'utf-8'), msg=payload_body, digestmod=hashlib.sha256)
-    expected_signature = "sha256=" + hash_object.hexdigest()
-    if not hmac.compare_digest(expected_signature, signature_header):
-        return 403, "Request signatures didn't match!"
-
-    return None, None
-
-
-def parse_date_time(date_time_string: str) -> datetime:
-    return datetime.fromisoformat(date_time_string.replace("Z", "+00:00"))
-
-
-def to_ns_time_value(dt: datetime) -> int:
-    return int(dt.timestamp() * 1_000_000_000)
-
-
 async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
     # https://docs.github.com/en/webhooks/webhook-events-and-payloads?actionType=in_progress#workflow_run
     action = body_json.get("action")
@@ -263,8 +136,8 @@ async def handle_workflow_job_event(body_json: Any) -> tuple[int, dict]:
     name = body_json.get("workflow_job", {}).get("name")
 
     span: trace.Span | None = None
-    start_time_string : str | None = None
-    end_time_string : str | None = None
+    start_time_string: str | None = None
+    end_time_string: str | None = None
     description: str | None = None
 
     if action == "queued":
@@ -294,12 +167,12 @@ async def handle_workflow_job_event(body_json: Any) -> tuple[int, dict]:
         logger.warning(
             f"Start time not found for workflow job {id}. Payload: {body_json}")
         return 400, {"message": f"Start time not found for workflow job {id}."}
-    
+
     if not end_time_string:
         logger.warning(
             f"End time not found for workflow job {id}. Payload: {body_json}")
         return 400, {"message": f"End time not found for workflow job {id}."}
-    
+
     # Start a new span for the workflow job
     # Override the start time from the payload
     # The run_id and run_attempt will be used to correlate the workflow job with the relevant workflow run

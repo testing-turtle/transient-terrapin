@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request, Response
 from typing import Any, Union
 
+from github_webhook import verify_signature
+
 print("Starting...")
 load_dotenv()
 
@@ -58,10 +60,13 @@ app = FastAPI()
 class WorkflowRunState:
     """Class to hold the state of a workflow run."""
     lock: asyncio.Lock  # guard updates to this state
-    span: trace.Span  | None # nullable to enable queing events before the span is created by the run event
+    # nullable to enable queing events before the span is created by the run event
+    span: trace.Span | None
     queued_job_events: list = field(default_factory=list)
-    job_spans: dict[str, trace.Span] = field(default_factory=dict)  # keyed on job_id
-    current_jobs: set = field(default_factory=set)  # TODO - can we remove this and just use job_spans to track?
+    job_spans: dict[str, trace.Span] = field(
+        default_factory=dict)  # keyed on job_id
+    # TODO - can we remove this and just use job_spans to track?
+    current_jobs: set = field(default_factory=set)
     can_complete: bool = False
     completed: bool = False  # indicates if the workflow run has completed
 
@@ -138,7 +143,8 @@ async def webhook(req: Request, resp: Response):
     event = req.headers.get('x-github-event')
 
     # logger.info(f'Got webhook event. Type: {event}. Payload: {body}')
-    logger.info(f'Got webhook event. Type: {event}. Action: {body_json.get("action")}. Conclusion: {body_json.get("conclusion")}')
+    logger.info(
+        f'Got webhook event. Type: {event}. Action: {body_json.get("action")}. Conclusion: {body_json.get("conclusion")}')
 
     if event == "workflow_run":
         status, result = await handle_workflow_run_event(body_json)
@@ -154,30 +160,6 @@ async def webhook(req: Request, resp: Response):
 
     resp.status_code = 200
     return {"message": f"Webhook event {event} processed successfully."}
-
-
-def verify_signature(payload_body, secret_token, headers):
-    """Verify that the payload was sent from GitHub by validating SHA256.
-
-    Raise and return 403 if not authorized.
-
-    Args:
-        payload_body: original request body to verify (request.body())
-        secret_token: GitHub app webhook token (WEBHOOK_SECRET)
-        signature_header: header received from GitHub (x-hub-signature-256)
-    """
-
-    signature_header = headers.get('x-hub-signature-256') if headers else None
-    if not signature_header:
-        return 403, "x-hub-signature-256 header is missing!"
-    hash_object = hmac.new(secret_token.encode(
-        'utf-8'), msg=payload_body, digestmod=hashlib.sha256)
-    expected_signature = "sha256=" + hash_object.hexdigest()
-    if not hmac.compare_digest(expected_signature, signature_header):
-        return 403, "Request signatures didn't match!"
-
-    return None, None
-
 
 
 async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
@@ -213,18 +195,18 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
             # We have a run state, but no span yet.
             # Start a new span for the workflow run
             span = tracer.start_span(f"Workflow Run {run_key}",
-                                    kind=trace.SpanKind.SERVER,
-                                    attributes={
-                                        "run_id": id,
-                                        "attempt": run_attempt,
-                                        "event": run_event,
-                                        "workflow_name": name,
-                                        "type": "workflow_run",
-                                        "http.url": "http://example.com"
+                                     kind=trace.SpanKind.SERVER,
+                                     attributes={
+                "run_id": id,
+                "attempt": run_attempt,
+                "event": run_event,
+                "workflow_name": name,
+                "type": "workflow_run",
+                "http.url": "http://example.com"
             })
             logger.info(
                 f"*** starting span for workflow run {run_key} in_progress ***")
-        
+
         if not run_state:
             run_state = WorkflowRunState(
                 lock=asyncio.Lock(),
@@ -237,14 +219,15 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
                 logger.info(
                     f"Workflow run state for {run_key} already exists. Ignoring event.")
                 return 200, {"message": f"Workflow run state for {run_key} already exists. Ignoring event."}
-        
+
         async with run_state.lock:
             if span:
                 # we created a new span above, so set it on the run state (now that we're in the lock)
                 run_state.span = span
 
             logger.info(f"Created new workflow run state for {run_key}.")
-            process_workflow_run_event(run_state, id, run_attempt, action, run_event, name, conclusion, complete_span)
+            process_workflow_run_event(
+                run_state, id, run_attempt, action, run_event, name, conclusion, complete_span)
             return 200, {"message": f"Workflow run state for {run_key} created and event processed."}
     elif action == "completed":
         # End the span for the workflow run if it exists
@@ -269,7 +252,7 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
                 logger.error(
                     f"Span for workflow run {run_key} not found. This is unexpected.")
                 return 500, {"message": f"Span for workflow run {run_key} not found. This is unexpected."}
-            
+
             span.set_attribute("conclusion", conclusion or "")
             jobs = run_state.current_jobs
             if len(jobs) > 0:
@@ -281,20 +264,23 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
                 complete_span = True
                 logger.info(
                     f"Marking to end span for workflow run {run_key} {action} ***")
-                    
-            process_workflow_run_event(run_state, id, run_attempt, action, run_event, name, conclusion, complete_span)
+
+            process_workflow_run_event(
+                run_state, id, run_attempt, action, run_event, name, conclusion, complete_span)
 
         if run_state.completed:
             # If the run state is completed, we can remove it from the dict
             # NOTE: this must be outside the runstate_lock to avoid deadlocks
             await webhook_state.remove_workflow_run_state(run_id=id, run_attempt=run_attempt)
-            logger.info(f"Workflow run state for {run_key} removed after completion.")
+            logger.info(
+                f"Workflow run state for {run_key} removed after completion.")
 
         return 200, {"message": f"Workflow run {run_key} {action} processed successfully."}
     else:
         logger.warning(
             f"Unknown action {action} for workflow run {run_key}. Payload: {body_json}")
         return 400, {"message": f"Unknown action {action} for workflow run {run_key}."}
+
 
 def process_workflow_run_event(run_state: WorkflowRunState, run_id: str, run_attempt: str, action: str, run_event: str, name: str, conclusion: str, complete_span: bool) -> tuple[int, dict]:
 
@@ -306,7 +292,7 @@ def process_workflow_run_event(run_state: WorkflowRunState, run_id: str, run_att
         return 500, {"message": f"Span for workflow run {run_key} not found. This is unexpected."}
 
     logger.debug("### workflow_run event. ID: %s, TraceID: %s, Action: %s",
-                run_key, run_state.span.get_span_context().trace_id, action)
+                 run_key, run_state.span.get_span_context().trace_id, action)
 
     with trace.use_span(run_state.span, end_on_exit=complete_span) as span:
         if run_state.queued_job_events:
@@ -314,7 +300,8 @@ def process_workflow_run_event(run_state: WorkflowRunState, run_id: str, run_att
                 f"Processing queued job events for workflow run {run_key}.")
             # Process any queued job events for this run
             for queued_event in run_state.queued_job_events:
-                process_workflow_job_event(queued_event, workflow_run_state=run_state)
+                process_workflow_job_event(
+                    queued_event, workflow_run_state=run_state)
             # Clear the queued events after processing
             run_state.queued_job_events.clear()
 
@@ -361,7 +348,7 @@ async def handle_workflow_job_event(body_json: Any) -> tuple[int, dict]:
         return 200, {"message": f"Workflow run state for {run_key} created and event queued for processing."}
 
     async with run_state.lock:
-        
+
         workflow_run_span = run_state.span
         if not workflow_run_span:
             logger.info(
@@ -370,18 +357,19 @@ async def handle_workflow_job_event(body_json: Any) -> tuple[int, dict]:
             return 200, {"message": f"Workflow run span for run_id {run_key} not found. Storing event for later processing."}
 
         logger.debug("### workflow_job event. Run ID: %s, Run TraceID: %s",
-                    run_key, workflow_run_span.get_span_context().trace_id)
+                     run_key, workflow_run_span.get_span_context().trace_id)
 
         with trace.use_span(workflow_run_span, end_on_exit=False) as workflow_run_span:
             # Process the workflow job event
             logger.info(f"Processing workflow job event for run_id {run_key}.")
-            process_workflow_job_event(body_json, run_state )
+            process_workflow_job_event(body_json, run_state)
 
     if run_state.completed:
         # If the run state is completed, we can remove it from the dict
         # NOTE: this must be outside the runstate_lock to avoid deadlocks
         await webhook_state.remove_workflow_run_state(run_id=run_id, run_attempt=run_attempt)
-        logger.info(f"Workflow run state for {run_key} removed after completion.")
+        logger.info(
+            f"Workflow run state for {run_key} removed after completion.")
 
     return 200, {"message": f"Workflow job event for run_id {run_key} processed successfully."}
 
@@ -458,7 +446,7 @@ def process_workflow_job_event(body_json, workflow_run_state: WorkflowRunState):
         return
 
     logger.debug("### workflow_job event. ID: %s, TraceID: %s, Action: %s",
-                id, span.get_span_context().trace_id, action)
+                 id, span.get_span_context().trace_id, action)
 
     with trace.use_span(span, end_on_exit=end_on_exit) as span:
         logger.info(f"Workflow job {id} {action}",
