@@ -298,6 +298,10 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
 
+      - name: Acquire lease
+        id: lease
+        uses: ./.github/actions/lease
+
       # TODO - explore downloading artifacts from multiple sources in parallel
       - name: download artifacts (common_src_build)
         uses: ./.github/actions/download_artifacts
