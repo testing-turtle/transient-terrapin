@@ -135,6 +135,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Acquire lease
+        id: lease
+        uses: ./.github/actions/lease
+
       - name: Build
         run: |
           echo "Pretending to build... $KEY_COMMON_BUILD"
@@ -183,12 +187,6 @@ jobs:
       - name: Acquire lease
         id: lease
         uses: ./.github/actions/lease
-        # with:
-        #   azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
-        #   storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
-        #   container: artifacts # ensure this exists
-        #   key: ${{ fromJson(needs.calculate.outputs.jobs).build.artifact_key }}
-        #   lease-duration: 15 # seconds
 
       - name: download artifacts
         uses: ./.github/actions/download_artifacts
@@ -205,7 +203,7 @@ jobs:
           echo "build_common.txt:"
           cat ./common_build_output/build_common.txt
           echo "===================="
-          sleep 5
+          sleep 20
           echo "common built for $KEY_BUILD" > build.txt
           echo "Inputs:" >> build.txt
           cat  ./common_build_output/build_common.txt >> build.txt
@@ -244,6 +242,13 @@ jobs:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
+
+
+      - name: Acquire lease
+        id: lease
+        uses: ./.github/actions/lease
+
+
       - name: download artifacts
         uses: ./.github/actions/download_artifacts
         with:
