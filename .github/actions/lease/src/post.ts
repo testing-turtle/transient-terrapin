@@ -1,5 +1,5 @@
 import fs from 'fs';
-
+import {DefaultArtifactClient} from '@actions/artifact'
 
 console.log("Lease action - post starting...");
 
@@ -14,6 +14,9 @@ let counter = 0;
 setInterval(() => {
 	if (!fs.existsSync('/tmp/lease-action-marker')) {
 		console.log("Marker file deleted, background process should have exited.");
+		const artifactClient = new DefaultArtifactClient();
+		artifactClient.uploadArtifact('lease-action-logs', ['/tmp/background.log'], '/tmp');
+		console.log("Uploaded background log as artifact 'lease-action-logs'.");
 		process.exit(0);
 	} else {
 		console.log("Marker file still present, waiting...");
