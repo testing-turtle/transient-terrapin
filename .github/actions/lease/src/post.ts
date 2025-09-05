@@ -7,18 +7,16 @@ console.log("Lease action - post starting...");
 fs.writeFileSync('/tmp/lease-action-marker', 'exit');
 console.log("Created marker file to signal background process to exit.");
 
+const jobName = process.env.GITHUB_JOB || 'unknown';
 
 console.log("Waiting for background process to detect marker and exit...");
 
 let counter = 0;
-
-
-
 function processor() {
 	if (!fs.existsSync('/tmp/lease-action-marker')) {
 		console.log("Marker file deleted, background process should have exited.");
 		const artifactClient = new DefaultArtifactClient();
-		artifactClient.uploadArtifact('lease-action-logs', ['/tmp/background.log'], '/tmp').then(() => {
+		artifactClient.uploadArtifact(`lease-action-logs-${jobName}`, ['/tmp/background.log'], '/tmp').then(() => {
 			console.log("Uploaded background log as artifact 'lease-action-logs'.");
 			process.exit(0);
 		});
