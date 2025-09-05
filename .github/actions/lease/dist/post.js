@@ -107677,16 +107677,16 @@ function requireIgnore () {
 	return ignore;
 }
 
-var processor = {};
+var processor$1 = {};
 
 var hasRequiredProcessor;
 
 function requireProcessor () {
-	if (hasRequiredProcessor) return processor;
+	if (hasRequiredProcessor) return processor$1;
 	hasRequiredProcessor = 1;
 	// synchronous utility for filtering entries and calculating subwalks
-	Object.defineProperty(processor, "__esModule", { value: true });
-	processor.Processor = processor.SubWalks = processor.MatchRecord = processor.HasWalkedCache = void 0;
+	Object.defineProperty(processor$1, "__esModule", { value: true });
+	processor$1.Processor = processor$1.SubWalks = processor$1.MatchRecord = processor$1.HasWalkedCache = void 0;
 	const minimatch_1 = requireCommonjs$4();
 	/**
 	 * A cache of which patterns have been processed for a given Path
@@ -107711,7 +107711,7 @@ function requireProcessor () {
 	            this.store.set(fullpath, new Set([pattern.globString()]));
 	    }
 	}
-	processor.HasWalkedCache = HasWalkedCache;
+	processor$1.HasWalkedCache = HasWalkedCache;
 	/**
 	 * A record of which paths have been matched in a given walk step,
 	 * and whether they only are considered a match if they are a directory,
@@ -107733,7 +107733,7 @@ function requireProcessor () {
 	        ]);
 	    }
 	}
-	processor.MatchRecord = MatchRecord;
+	processor$1.MatchRecord = MatchRecord;
 	/**
 	 * A collection of patterns that must be processed in a subsequent step
 	 * for a given path.
@@ -107769,7 +107769,7 @@ function requireProcessor () {
 	        return [...this.store.keys()].filter(t => t.canReaddir());
 	    }
 	}
-	processor.SubWalks = SubWalks;
+	processor$1.SubWalks = SubWalks;
 	/**
 	 * The class that processes patterns for a given path.
 	 *
@@ -107982,9 +107982,9 @@ function requireProcessor () {
 	        }
 	    }
 	}
-	processor.Processor = Processor;
+	processor$1.Processor = Processor;
 	
-	return processor;
+	return processor$1;
 }
 
 var hasRequiredWalker;
@@ -205957,13 +205957,14 @@ require$$0$6.writeFileSync('/tmp/lease-action-marker', 'exit');
 console.log("Created marker file to signal background process to exit.");
 console.log("Waiting for background process to detect marker and exit...");
 let counter = 0;
-setInterval(() => {
+function processor() {
     if (!require$$0$6.existsSync('/tmp/lease-action-marker')) {
         console.log("Marker file deleted, background process should have exited.");
         const artifactClient = new artifactExports.DefaultArtifactClient();
-        artifactClient.uploadArtifact('lease-action-logs', ['/tmp/background.log'], '/tmp');
-        console.log("Uploaded background log as artifact 'lease-action-logs'.");
-        process.exit(0);
+        artifactClient.uploadArtifact('lease-action-logs', ['/tmp/background.log'], '/tmp').then(() => {
+            console.log("Uploaded background log as artifact 'lease-action-logs'.");
+            process.exit(0);
+        });
     }
     else {
         console.log("Marker file still present, waiting...");
@@ -205972,6 +205973,13 @@ setInterval(() => {
             console.log("Waited too long, exiting anyway.");
             process.exit(1);
         }
+        // Check again in 1 second
+        setTimeout(() => {
+            processor();
+        }, 1000);
     }
+}
+setTimeout(() => {
+    processor();
 }, 1000);
 //# sourceMappingURL=post.js.map

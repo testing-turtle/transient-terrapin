@@ -1,5 +1,5 @@
 import fs from 'fs';
-import {DefaultArtifactClient} from '@actions/artifact'
+import { DefaultArtifactClient } from '@actions/artifact'
 
 console.log("Lease action - post starting...");
 
@@ -11,13 +11,17 @@ console.log("Created marker file to signal background process to exit.");
 console.log("Waiting for background process to detect marker and exit...");
 
 let counter = 0;
-setInterval(() => {
+
+
+
+function processor() {
 	if (!fs.existsSync('/tmp/lease-action-marker')) {
 		console.log("Marker file deleted, background process should have exited.");
 		const artifactClient = new DefaultArtifactClient();
-		artifactClient.uploadArtifact('lease-action-logs', ['/tmp/background.log'], '/tmp');
-		console.log("Uploaded background log as artifact 'lease-action-logs'.");
-		process.exit(0);
+		artifactClient.uploadArtifact('lease-action-logs', ['/tmp/background.log'], '/tmp').then(() => {
+			console.log("Uploaded background log as artifact 'lease-action-logs'.");
+			process.exit(0);
+		});
 	} else {
 		console.log("Marker file still present, waiting...");
 		counter++;
@@ -25,7 +29,13 @@ setInterval(() => {
 			console.log("Waited too long, exiting anyway.");
 			process.exit(1);
 		}
+		// Check again in 1 second
+		setTimeout(() => {
+			processor();
+		}, 1000);
 	}
+}
+
+setTimeout(() => {
+	processor();
 }, 1000);
-
-
