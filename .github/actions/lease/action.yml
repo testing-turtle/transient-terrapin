@@ -1,0 +1,9 @@
+name: 'Acquire lease'
+description: 'Simulates acquiring a lease on a resource and starts a background process to renew it periodically'
+inputs:
+outputs:
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+  post: 'dist/post.js'

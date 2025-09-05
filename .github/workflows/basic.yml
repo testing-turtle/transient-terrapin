@@ -180,6 +180,16 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
 
+      - name: Acquire lease
+        id: lease
+        uses: ./.github/actions/lease
+        # with:
+        #   azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+        #   storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+        #   container: artifacts # ensure this exists
+        #   key: ${{ fromJson(needs.calculate.outputs.jobs).build.artifact_key }}
+        #   lease-duration: 15 # seconds
+
       - name: download artifacts
         uses: ./.github/actions/download_artifacts
         with:
