@@ -247,7 +247,10 @@ jobs:
       - name: Acquire lease
         id: lease
         uses: ./.github/actions/lease
-
+        with:
+          storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          container: artifacts # ensure this exists
+          blob-path: test/lease-file.txt
 
       - name: download artifacts
         uses: ./.github/actions/download_artifacts
