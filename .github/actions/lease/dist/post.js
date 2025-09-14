@@ -205956,23 +205956,27 @@ console.log("Lease action - post starting...");
 require$$0$6.writeFileSync('/tmp/lease-action-marker', 'exit');
 console.log("Created marker file to signal background process to exit.");
 const jobName = process.env.GITHUB_JOB || 'unknown';
+function uploadBackgroundLog() {
+    const artifactClient = new artifactExports.DefaultArtifactClient();
+    artifactClient.uploadArtifact(`lease-action-logs-${jobName}`, ['/tmp/background.log'], '/tmp').then(() => {
+        console.log("Uploaded background log as artifact 'lease-action-logs'.");
+        process.exit(0);
+    });
+}
 console.log("Waiting for background process to detect marker and exit...");
 let counter = 0;
 const counterMax = 20;
 function processor() {
     if (!require$$0$6.existsSync('/tmp/lease-action-marker')) {
         console.log("Marker file deleted, background process should have exited.");
-        const artifactClient = new artifactExports.DefaultArtifactClient();
-        artifactClient.uploadArtifact(`lease-action-logs-${jobName}`, ['/tmp/background.log'], '/tmp').then(() => {
-            console.log("Uploaded background log as artifact 'lease-action-logs'.");
-            process.exit(0);
-        });
+        uploadBackgroundLog();
     }
     else {
         console.log("Marker file still present, waiting...");
         counter++;
         if (counter > counterMax) {
             console.log("Waited too long, exiting anyway.");
+            uploadBackgroundLog();
             process.exit(1);
         }
         // Check again in 1 second
