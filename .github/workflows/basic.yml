@@ -159,13 +159,6 @@ jobs:
           echo '... ${{ needs.calculate.outputs.jobs}}'
           echo '... ${{ fromJson(needs.calculate.outputs.jobs).build-common.artifact_exists }}'
       
-      - name: Azure login with federated credentials
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          allow-no-subscriptions: true
-
       - name: upload artifacts
         uses: ./.github/actions/upload_artifacts
         with:
