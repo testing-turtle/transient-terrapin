@@ -135,6 +135,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Azure login with federated credentials
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
       - name: Acquire lease
         id: lease
         uses: ./.github/actions/lease
