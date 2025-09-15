@@ -37062,8 +37062,11 @@ async function main() {
     let nextRenewal = Date.now() + 15000;
     while (true) {
         if (isMarkerFilePresent()) {
-            log("Marker file found. Deleting marker and exiting background process.");
+            log("Marker file found. Releasing the lease...");
+            await leaseClient.releaseLease();
+            log("Deleting marker file...");
             fs$1.rmSync('/tmp/lease-action-marker');
+            log("Exiting background process...");
             process.exit(0);
         }
         if (Date.now() < nextRenewal) {
