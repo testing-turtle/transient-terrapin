@@ -37026,6 +37026,10 @@ class AzureCliCredential {
     }
 }
 
+function sleep(durationMs) {
+    return new Promise(resolve => setTimeout(resolve, durationMs));
+}
+
 function log(message) {
     const timestamp = new Date().toISOString();
     // Write message to /tmp/background.log
@@ -37049,9 +37053,6 @@ const blobClient = containerClient.getBlobClient(blobPath);
 const leaseClient = blobClient.getBlobLeaseClient(leaseId);
 function isMarkerFilePresent() {
     return fs$1.existsSync('/tmp/lease-action-marker');
-}
-function sleep(duration) {
-    return new Promise(resolve => setTimeout(resolve, duration));
 }
 async function main() {
     // Start a timer to run every 5 seconds

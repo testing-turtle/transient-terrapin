@@ -1,6 +1,7 @@
 import fs from 'fs';
 import { BlobServiceClient } from '@azure/storage-blob';
 import { AzureCliCredential } from '@azure/identity';
+import { sleep } from './utils.js';
 
 function log(message: string) {
 	const timestamp = new Date().toISOString();
@@ -40,10 +41,6 @@ const leaseClient = blobClient.getBlobLeaseClient(leaseId);
 
 function isMarkerFilePresent(): boolean {
 	return fs.existsSync('/tmp/lease-action-marker');
-}
-
-function sleep(duration: number): Promise<void> {
-	return new Promise(resolve => setTimeout(resolve, duration))
 }
 
 

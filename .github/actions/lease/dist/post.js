@@ -1771,7 +1771,7 @@ function requireTimers () {
 	return timers;
 }
 
-var main = {exports: {}};
+var main$1 = {exports: {}};
 
 var sbmh;
 var hasRequiredSbmh;
@@ -3309,7 +3309,7 @@ function requireUrlencoded () {
 var hasRequiredMain;
 
 function requireMain () {
-	if (hasRequiredMain) return main.exports;
+	if (hasRequiredMain) return main$1.exports;
 	hasRequiredMain = 1;
 
 	const WritableStream = require$$0$d.Writable;
@@ -3390,12 +3390,12 @@ function requireMain () {
 	  this._parser.write(chunk, cb);
 	};
 
-	main.exports = Busboy;
-	main.exports.default = Busboy;
-	main.exports.Busboy = Busboy;
+	main$1.exports = Busboy;
+	main$1.exports.default = Busboy;
+	main$1.exports.Busboy = Busboy;
 
-	main.exports.Dicer = Dicer;
-	return main.exports;
+	main$1.exports.Dicer = Dicer;
+	return main$1.exports;
 }
 
 var constants$a;
@@ -107677,16 +107677,16 @@ function requireIgnore () {
 	return ignore;
 }
 
-var processor$1 = {};
+var processor = {};
 
 var hasRequiredProcessor;
 
 function requireProcessor () {
-	if (hasRequiredProcessor) return processor$1;
+	if (hasRequiredProcessor) return processor;
 	hasRequiredProcessor = 1;
 	// synchronous utility for filtering entries and calculating subwalks
-	Object.defineProperty(processor$1, "__esModule", { value: true });
-	processor$1.Processor = processor$1.SubWalks = processor$1.MatchRecord = processor$1.HasWalkedCache = void 0;
+	Object.defineProperty(processor, "__esModule", { value: true });
+	processor.Processor = processor.SubWalks = processor.MatchRecord = processor.HasWalkedCache = void 0;
 	const minimatch_1 = requireCommonjs$4();
 	/**
 	 * A cache of which patterns have been processed for a given Path
@@ -107711,7 +107711,7 @@ function requireProcessor () {
 	            this.store.set(fullpath, new Set([pattern.globString()]));
 	    }
 	}
-	processor$1.HasWalkedCache = HasWalkedCache;
+	processor.HasWalkedCache = HasWalkedCache;
 	/**
 	 * A record of which paths have been matched in a given walk step,
 	 * and whether they only are considered a match if they are a directory,
@@ -107733,7 +107733,7 @@ function requireProcessor () {
 	        ]);
 	    }
 	}
-	processor$1.MatchRecord = MatchRecord;
+	processor.MatchRecord = MatchRecord;
 	/**
 	 * A collection of patterns that must be processed in a subsequent step
 	 * for a given path.
@@ -107769,7 +107769,7 @@ function requireProcessor () {
 	        return [...this.store.keys()].filter(t => t.canReaddir());
 	    }
 	}
-	processor$1.SubWalks = SubWalks;
+	processor.SubWalks = SubWalks;
 	/**
 	 * The class that processes patterns for a given path.
 	 *
@@ -107982,9 +107982,9 @@ function requireProcessor () {
 	        }
 	    }
 	}
-	processor$1.Processor = Processor;
+	processor.Processor = Processor;
 	
-	return processor$1;
+	return processor;
 }
 
 var hasRequiredWalker;
@@ -205951,6 +205951,10 @@ function requireArtifact () {
 
 var artifactExports = requireArtifact();
 
+function sleep(durationMs) {
+    return new Promise(resolve => setTimeout(resolve, durationMs));
+}
+
 console.log("Lease action - post starting...");
 // Create the marker file to signal the background process to exit
 require$$0$6.writeFileSync('/tmp/lease-action-marker', 'exit');
@@ -205963,15 +205967,15 @@ function uploadBackgroundLog() {
         process.exit(0);
     });
 }
-console.log("Waiting for background process to detect marker and exit...");
-let counter = 0;
-const counterMax = 20;
-function processor() {
-    if (!require$$0$6.existsSync('/tmp/lease-action-marker')) {
-        console.log("Marker file deleted, background process should have exited.");
-        uploadBackgroundLog();
-    }
-    else {
+async function main() {
+    console.log("Waiting for background process to detect marker and exit...");
+    const counterMax = 20;
+    for (let counter = 0; counter < counterMax; counter++) {
+        if (!require$$0$6.existsSync('/tmp/lease-action-marker')) {
+            console.log("Marker file deleted, background process should have exited.");
+            uploadBackgroundLog();
+            break;
+        }
         console.log("Marker file still present, waiting...");
         counter++;
         if (counter > counterMax) {
@@ -205979,13 +205983,8 @@ function processor() {
             uploadBackgroundLog();
             process.exit(1);
         }
-        // Check again in 1 second
-        setTimeout(() => {
-            processor();
-        }, 1000);
+        await sleep(2000);
     }
 }
-setTimeout(() => {
-    processor();
-}, 2000);
+main();
 //# sourceMappingURL=post.js.map
