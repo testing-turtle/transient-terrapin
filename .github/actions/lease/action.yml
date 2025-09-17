@@ -1,5 +1,15 @@
 name: 'Acquire lease'
 description: 'Simulates acquiring a lease on a resource and starts a background process to renew it periodically'
+inputs:
+  storage-account:
+    description: Storage account name
+    required: true
+  container:
+    description: Container name
+    required: true
+  blob-path:
+    description: Path to blob to acquire lease on
+    required: true
 
 runs:
   using: 'node20'

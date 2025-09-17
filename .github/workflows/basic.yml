@@ -135,9 +135,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Azure login with federated credentials
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
       - name: Acquire lease
         id: lease
         uses: ./.github/actions/lease
+        with:
+          storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          container: artifacts # ensure this exists
+          blob-path: test/lease-file.txt
 
       - name: Build
         run: |
@@ -148,13 +159,6 @@ jobs:
           echo '... ${{ needs.calculate.outputs.jobs}}'
           echo '... ${{ fromJson(needs.calculate.outputs.jobs).build-common.artifact_exists }}'
       
-      - name: Azure login with federated credentials
-        uses: azure/login@v2
-        with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          allow-no-subscriptions: true
-
       - name: upload artifacts
         uses: ./.github/actions/upload_artifacts
         with:
@@ -187,6 +191,10 @@ jobs:
       - name: Acquire lease
         id: lease
         uses: ./.github/actions/lease
+        with:
+          storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          container: artifacts # ensure this exists
+          blob-path: test/lease-file.txt
 
       - name: download artifacts
         uses: ./.github/actions/download_artifacts
@@ -247,7 +255,10 @@ jobs:
       - name: Acquire lease
         id: lease
         uses: ./.github/actions/lease
-
+        with:
+          storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          container: artifacts # ensure this exists
+          blob-path: test/lease-file.txt
 
       - name: download artifacts
         uses: ./.github/actions/download_artifacts
@@ -301,6 +312,10 @@ jobs:
       - name: Acquire lease
         id: lease
         uses: ./.github/actions/lease
+        with:
+          storage-account: ${{ vars.AZURE_STORAGE_ACCOUNT }}
+          container: artifacts # ensure this exists
+          blob-path: test/lease-file.txt
 
       # TODO - explore downloading artifacts from multiple sources in parallel
       - name: download artifacts (common_src_build)
