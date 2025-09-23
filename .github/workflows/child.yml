@@ -17,11 +17,15 @@ jobs:
     
     - name: checkout
       uses: actions/checkout@v3
-      
+
     - name: call helper workflow
-      uses: ./.github/workflows/helper.yml
-      with:
-        helper_input: ${{ inputs.example_input }}
-        run_id: ${{ github.run_id }}
-        run_attempt: ${{ github.run_attempt }}
+      run: |
+        gh workflow run helper.yml \
+          --repo ${{ github.repository }} 
+          --ref ${{ github.ref }} \
+          -f helper_input="Value from Child" \
+          -f run_id="${{ github.run_id }}" \
+          -f run_attempt="${{ github.run_attempt }}" 
+
+
 
