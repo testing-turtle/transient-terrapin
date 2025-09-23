@@ -8,10 +8,17 @@ on:
         type: string
 
 jobs:
-    example_job:
-        runs-on: ubuntu-latest
-        steps:
-        - name: Print Input
-          run: |
-            echo "The input value is: ${{ inputs.example_input }}"
+  example_job:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Print Input
+      run: |
+        echo "The input value is: ${{ inputs.example_input }}"
+    
+    - name: call helper workflow
+      uses: ./.github/workflows/helper.yml
+      with:
+        helper_input: ${{ inputs.example_input }}
+        run_id: ${{ github.run_id }}
+        run_attempt: ${{ github.run_attempt }}
 
