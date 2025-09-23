@@ -15,6 +15,9 @@ jobs:
       run: |
         echo "The input value is: ${{ inputs.example_input }}"
     
+    - name: checkout
+      uses: actions/checkout@v3
+      
     - name: call helper workflow
       uses: ./.github/workflows/helper.yml
       with:
