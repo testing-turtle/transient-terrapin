@@ -21,3 +21,11 @@ compare-host: ## Run comparison on host (includes dropping file caches)
 	 echo 3 | sudo tee /proc/sys/vm/drop_caches
 	devcontainerx exec --path . -- bash -c "time FILTER_FILE=${FILTER_FILE} GITHUB_OUTPUT=.stuartle.gh-out.txt python ./scripts/process_path_filter2.py"
 	devcontainerx exec --path . -- bash -c "time FILTER_FILE=${FILTER_FILE} GITHUB_OUTPUT=.stuartle.gh-out.txt python ./scripts/process_path_filter2.py"
+
+
+webhook2-build: ## Build the webhook2 Docker image
+	docker build -t slmdp.azurecr.io/webhook ./webhook2
+
+webhook2-build-push: webhook2-build ## Build the webhook2 Docker image
+	az acr login --name slmdp
+	docker push slmdp.azurecr.io/webhook:latest

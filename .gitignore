@@ -5,3 +5,7 @@ __pycache__
 
 node_modules
 build
+
+
+.env
+DevTunnels

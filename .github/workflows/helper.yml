@@ -1,0 +1,32 @@
+name: helkper Workflow
+on:
+  workflow_dispatch:
+    inputs:
+      helper_input:
+        required: true
+        type: string
+      run_id:
+        required: true
+        type: string
+      run_attempt:
+        required: true
+        type: string
+
+jobs:
+  do_work:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Print Input
+      run: |
+        echo "The input value is: ${{ inputs.helper_input }}"
+    - name: Print Run ID
+      run: |
+        echo "The Run ID is: ${{ inputs.run_id }}"
+    - name: Print Run Attempt
+      run: |
+        echo "The Run Attempt is: ${{ inputs.run_attempt }}"
+    - name: Pretend to work
+      run: |
+        echo "Doing some work here..."
+        sleep 10
+        echo "Work completed."

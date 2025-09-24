@@ -1,0 +1,32 @@
+name: Child Workflow
+
+on:
+  workflow_call:
+    inputs:
+      example_input:
+        required: true
+        type: string
+
+jobs:
+  example_job:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Print Input
+      run: |
+        echo "The input value is: ${{ inputs.example_input }}"
+    
+    - name: checkout
+      uses: actions/checkout@v3
+
+    - name: call helper workflow
+      run: |
+        gh workflow run helper.yml \
+          --repo ${{ github.repository }} 
+          --ref ${{ github.ref }} \
+          -f helper_input="Value from Child" \
+          -f run_id="${{ github.run_id }}" \
+          -f run_attempt="${{ github.run_attempt }}" 
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+
