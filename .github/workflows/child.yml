@@ -34,12 +34,12 @@ jobs:
 
     - name: call helper workflow
       run: |
+        helper_run_id="helper-${{ github.run_id }}-${{ github.run_number }}-${{ github.run_attempt }}"
         gh workflow run helper.yml \
           --repo "${{ github.repository }}" \
           --ref "${{ github.head_ref }}" \
           -f helper_input="Value from Child" \
-          -f run_id="${{ github.run_id }}" \
-          -f run_attempt="${{ github.run_attempt }}" 
+          -f helper_run_id="$helper_run_id"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
