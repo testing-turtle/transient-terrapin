@@ -11,8 +11,11 @@ on:
   merge_group:
 
 permissions:
-  contents: read
+  # contents: read
   id-token: write # need this for federated login
+  contents: write
+  pull-requests: write
+  repository-projects: write
 
 jobs:
   calculate:
@@ -128,10 +131,6 @@ jobs:
 
   child-job:
     needs: calculate
-    permissions:
-      contents: write
-      pull-requests: write
-      repository-projects: write
     uses: ./.github/workflows/child.yml
     with:
       example_input: Testing...
