@@ -1,14 +1,11 @@
-name: helkper Workflow
+name: 'helper: ${{ inputs.helper_run_id }}'
 on:
   workflow_dispatch:
     inputs:
       helper_input:
         required: true
         type: string
-      run_id:
-        required: true
-        type: string
-      run_attempt:
+      helper_run_id:
         required: true
         type: string
 
@@ -21,10 +18,7 @@ jobs:
         echo "The input value is: ${{ inputs.helper_input }}"
     - name: Print Run ID
       run: |
-        echo "The Run ID is: ${{ inputs.run_id }}"
-    - name: Print Run Attempt
-      run: |
-        echo "The Run Attempt is: ${{ inputs.run_attempt }}"
+        echo "The Run ID is: ${{ inputs.helper_run_id }}"
     - name: Pretend to work
       run: |
         echo "Doing some work here..."

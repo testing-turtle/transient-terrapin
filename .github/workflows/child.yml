@@ -7,6 +7,12 @@ on:
         required: true
         type: string
 
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+  repository-projects: write
+  
 jobs:
   example_job:
     runs-on: ubuntu-latest
@@ -14,18 +20,26 @@ jobs:
     - name: Print Input
       run: |
         echo "The input value is: ${{ inputs.example_input }}"
+
+    - name: env
+      run: |
+        printenv | sort
+
+    - name: github JSON
+      run: |
+        echo '${{ toJson(github) }}'
     
     - name: checkout
       uses: actions/checkout@v3
 
     - name: call helper workflow
       run: |
+        helper_run_id="helper-${{ github.run_id }}-${{ github.run_number }}-${{ github.run_attempt }}"
         gh workflow run helper.yml \
-          --repo ${{ github.repository }} 
-          --ref ${{ github.ref }} \
+          --repo "${{ github.repository }}" \
+          --ref "${{ github.head_ref }}" \
           -f helper_input="Value from Child" \
-          -f run_id="${{ github.run_id }}" \
-          -f run_attempt="${{ github.run_attempt }}" 
+          -f helper_run_id="$helper_run_id"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
