@@ -20,6 +20,14 @@ jobs:
     - name: Print Input
       run: |
         echo "The input value is: ${{ inputs.example_input }}"
+
+    - name: env
+      run: |
+        printenv | sort
+
+    - name: github JSON
+      run: |
+        ${{ toJson(github) }}
     
     - name: checkout
       uses: actions/checkout@v3
