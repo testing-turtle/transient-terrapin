@@ -27,8 +27,8 @@ jobs:
     - name: call helper workflow
       run: |
         gh workflow run helper.yml \
-          --repo ${{ github.repository }} 
-          --ref ${{ github.ref }} \
+          --repo "${{ github.repository }}" \
+          --ref "${{ github.ref }}" \
           -f helper_input="Value from Child" \
           -f run_id="${{ github.run_id }}" \
           -f run_attempt="${{ github.run_attempt }}" 
