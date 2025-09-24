@@ -128,6 +128,10 @@ jobs:
 
   child-job:
     needs: calculate
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
     uses: ./.github/workflows/child.yml
     with:
       example_input: Testing...
