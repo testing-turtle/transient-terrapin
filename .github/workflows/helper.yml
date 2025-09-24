@@ -1,4 +1,4 @@
-name: helkper Workflow
+name: helper Workflow
 on:
   workflow_dispatch:
     inputs:
