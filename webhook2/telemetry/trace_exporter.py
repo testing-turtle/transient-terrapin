@@ -10,11 +10,19 @@ class WorkflowTraceExporter(AzureMonitorTraceExporter):
     def _span_to_envelope(self, span):
         envelope : Any = super()._span_to_envelope(span)
         properties = envelope.data.base_data.properties
+        organization = properties.get("organization", None)
+        repository = properties.get("repository", None)
         run_id = properties.get("run_id", None)
         run_attempt = properties.get("run_attempt", None)
+        parent_run_id = properties.get("parent_run_id", None)
+        parent_run_attempt = properties.get("parent_run_attempt", None)
         if run_id and run_attempt:
-            run_key = f"{run_id}#{run_attempt}"
             # we've got a run or a job
+            if parent_run_id and parent_run_attempt:
+                # use parent run for operation id to correlate spawned workflows
+                run_key = f"{organization}#{repository}#{parent_run_id}#{parent_run_attempt}"
+            else:
+                run_key = f"{organization}#{repository}#{run_id}#{run_attempt}"
             # set the operation id to the run key
             envelope.tags["ai.operation.id"] = run_key
             job_id = properties.get("job_id", None)
