@@ -10,12 +10,14 @@ on:
 
   merge_group:
 
-permissions:
-  # contents: read
-  id-token: write # need this for federated login
-  contents: write
-  pull-requests: write
-  repository-projects: write
+permissions: write-all
+# permissions:
+#   # contents: read
+#   id-token: write # need this for federated login
+#   contents: write
+#   pull-requests: write
+#   repository-projects: write
+  
 
 jobs:
   calculate:
