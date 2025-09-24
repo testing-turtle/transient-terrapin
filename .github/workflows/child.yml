@@ -27,7 +27,7 @@ jobs:
 
     - name: github JSON
       run: |
-        ${{ toJson(github) }}
+        echo '${{ toJson(github) }}'
     
     - name: checkout
       uses: actions/checkout@v3
@@ -36,7 +36,7 @@ jobs:
       run: |
         gh workflow run helper.yml \
           --repo "${{ github.repository }}" \
-          --ref "${{ github.ref }}" \
+          --ref "${{ github.head_ref }}" \
           -f helper_input="Value from Child" \
           -f run_id="${{ github.run_id }}" \
           -f run_attempt="${{ github.run_attempt }}" 
