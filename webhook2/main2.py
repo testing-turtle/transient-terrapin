@@ -100,6 +100,8 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
         end_time_string = body_json.get("workflow_run", {}).get("updated_at")
         start_time = parse_date_time(start_time_string)
         end_time = parse_date_time(end_time_string)
+        organization = body_json.get("organization", {}).get("login")
+        repository = body_json.get("repository", {}).get("name")
 
         parent_run_id = None
         parent_run_number = None
@@ -110,6 +112,7 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
             parent_run_id = parts[1]
             parent_run_number = parts[2]
             parent_run_attempt = parts[3]
+            logger.info(f"**************Helper workflow run detected. Parent Run ID: {parent_run_id}, Parent Run Number: {parent_run_number}, Parent Run Attempt: {parent_run_attempt}")
 
 
         # Create the workflow run span
@@ -119,6 +122,8 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
                                  kind=trace.SpanKind.SERVER,
                                  start_time=to_ns_time_value(start_time),
                                  attributes={
+            "organization": organization,
+            "repository": repository,
             "run_id": id,
             "run_attempt": run_attempt,
             "event": run_event,
@@ -147,6 +152,9 @@ async def handle_workflow_job_event(body_json: Any) -> tuple[int, dict]:
     runner_id = body_json.get("workflow_job", {}).get("runner_id")
     conclusion = body_json.get("workflow_job", {}).get("conclusion")
     name = body_json.get("workflow_job", {}).get("name")
+    organization = body_json.get("organization", {}).get("login")
+    repository = body_json.get("repository", {}).get("name")
+    workflow_name = body_json.get("workflow_job", {}).get("workflow_name")
 
     span: trace.Span | None = None
     start_time_string: str | None = None
@@ -189,12 +197,13 @@ async def handle_workflow_job_event(body_json: Any) -> tuple[int, dict]:
     parent_run_id = None
     parent_run_number = None
     parent_run_attempt = None
-    if name.startswith("helper:"):
+    if workflow_name.startswith("helper:"):
         # parse the name parts
-        parts = name.split("-")
+        parts = workflow_name.split("-")
         parent_run_id = parts[1]
         parent_run_number = parts[2]
         parent_run_attempt = parts[3]
+        logger.info(f"**************Helper workflow job detected. Parent Run ID: {parent_run_id}, Parent Run Number: {parent_run_number}, Parent Run Attempt: {parent_run_attempt}")
 
 
     # Start a new span for the workflow job
@@ -205,6 +214,8 @@ async def handle_workflow_job_event(body_json: Any) -> tuple[int, dict]:
         kind=trace.SpanKind.CLIENT,
         start_time=to_ns_time_value(parse_date_time(start_time_string)),
         attributes={
+            "organization": organization,
+            "repository": repository,
             "job_id": id,
             "run_id": run_id,
             "action": action,
