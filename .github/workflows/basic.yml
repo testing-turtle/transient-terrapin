@@ -132,7 +132,7 @@ jobs:
           key: hash-cache-${{ steps.get_ref.outputs.result }}-${{ github.sha }}-${{ github.event_name }}
 
   child-job:
-    # needs: calculate
+    needs: calculate
     uses: ./.github/workflows/child.yml
     with:
       example_input: Testing...

@@ -48,7 +48,7 @@
 			"request": "launch",
 			"module": "uvicorn",
 			"args": [
-				"main:app",
+				"main2:app",
 				"--reload",
 				"--host",
 				"0.0.0.0",
@@ -63,6 +63,7 @@
 			},
 			"console": "integratedTerminal",
 			"cwd": "${workspaceFolder}/webhook2",
+			"justMyCode": false
 		}
 	]
 }
