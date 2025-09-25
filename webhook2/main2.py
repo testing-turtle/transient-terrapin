@@ -114,16 +114,13 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
             parent_run_number = parts[2]
             parent_run_attempt = parts[3]
             parent_job_id = parts[4]
-            logger.info(f"**************Helper workflow run detected. Parent Run ID: {parent_run_id}, Parent Run Number: {parent_run_number}, Parent Run Attempt: {parent_run_attempt}")
-
+            logger.info(
+                f"**************Helper workflow run detected. Parent Run ID: {parent_run_id}, Parent Run Number: {parent_run_number}, Parent Run Attempt: {parent_run_attempt}")
 
         # Create the workflow run span
         # Override the start time from the payload
         # The run_id and run_attempt will be used to correlate the workflow run with the jobs
-        span = tracer.start_span(f"Workflow Run {name} ({run_key})",
-                                 kind=trace.SpanKind.SERVER,
-                                 start_time=to_ns_time_value(start_time),
-                                 attributes={
+        attributes={
             "organization": organization,
             "repository": repository,
             "run_id": id,
@@ -133,10 +130,14 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
             "type": "workflow_run",
             "http.url": "http://example.com",
             "conclusion": conclusion or "",
-            "parent_run_id": parent_run_id,
-            "parent_run_attempt": parent_run_attempt,
-            "parent_job_id": parent_job_id,
-        })
+        }
+        add_if_set(attributes, "parent_run_id", parent_run_id)
+        add_if_set(attributes, "parent_run_attempt", parent_run_attempt)
+        add_if_set(attributes, "parent_job_id", parent_job_id)
+        span = tracer.start_span(f"Workflow Run {name} ({run_key})",
+                                 kind=trace.SpanKind.SERVER,
+                                 start_time=to_ns_time_value(start_time),
+                                 attributes= attributes)
 
         # End the span with the end time from the payload
         span.end(end_time=to_ns_time_value(end_time))
@@ -144,6 +145,10 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
         return 200, {"message": f"Workflow run {run_key} {action} processed successfully."}
 
     return 200, {"message": f"Action {action} ignored."}
+
+def add_if_set(d: dict, key: str, value: Any):
+    if value is not None:
+        d[key] = value
 
 
 async def handle_workflow_job_event(body_json: Any) -> tuple[int, dict]:
@@ -206,29 +211,30 @@ async def handle_workflow_job_event(body_json: Any) -> tuple[int, dict]:
         parent_run_id = parts[1]
         parent_run_number = parts[2]
         parent_run_attempt = parts[3]
-        logger.info(f"**************Helper workflow job detected. Parent Run ID: {parent_run_id}, Parent Run Number: {parent_run_number}, Parent Run Attempt: {parent_run_attempt}")
-
+        logger.info(
+            f"**************Helper workflow job detected. Parent Run ID: {parent_run_id}, Parent Run Number: {parent_run_number}, Parent Run Attempt: {parent_run_attempt}")
 
     # Start a new span for the workflow job
     # Override the start time from the payload
     # The run_id and run_attempt will be used to correlate the workflow job with the relevant workflow run
+    attributes = {
+        "organization": organization,
+        "repository": repository,
+        "job_id": id,
+        "run_id": run_id,
+        "action": action,
+        "run_attempt": run_attempt,
+        "job_name": name,
+        "type": "workflow_job",
+        "runner_id": runner_id,
+    }
+    add_if_set(attributes, "parent_run_id", parent_run_id)
+    add_if_set(attributes, "parent_run_attempt", parent_run_attempt)
     span = tracer.start_span(
         f"Workflow Job {name} ({id}) {description}",
         kind=trace.SpanKind.CLIENT,
         start_time=to_ns_time_value(parse_date_time(start_time_string)),
-        attributes={
-            "organization": organization,
-            "repository": repository,
-            "job_id": id,
-            "run_id": run_id,
-            "action": action,
-            "run_attempt": run_attempt,
-            "job_name": name,
-            "type": "workflow_job",
-            "runner_id": runner_id,
-            "parent_run_id": parent_run_id,
-            "parent_run_attempt": parent_run_attempt,
-        }
+        attributes=attributes
     )
     logger.info(f"Logging span for workflow job {id} {description} ***")
     span.end(end_time=to_ns_time_value(parse_date_time(end_time_string)))
