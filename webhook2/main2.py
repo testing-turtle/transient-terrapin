@@ -106,14 +106,14 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
         parent_run_id = None
         parent_run_number = None
         parent_run_attempt = None
-        parent_job_name = None
+        parent_job_id = None
         if name.startswith("helper:"):
             # parse the name parts
             parts = name.split("-")
             parent_run_id = parts[1]
             parent_run_number = parts[2]
             parent_run_attempt = parts[3]
-            parent_job_name = parts[4]
+            parent_job_id = parts[4]
             logger.info(f"**************Helper workflow run detected. Parent Run ID: {parent_run_id}, Parent Run Number: {parent_run_number}, Parent Run Attempt: {parent_run_attempt}")
 
 
@@ -135,7 +135,7 @@ async def handle_workflow_run_event(body_json: Any) -> tuple[int, dict]:
             "conclusion": conclusion or "",
             "parent_run_id": parent_run_id,
             "parent_run_attempt": parent_run_attempt,
-            "parent_job_name": parent_job_name,
+            "parent_job_id": parent_job_id,
         })
 
         # End the span with the end time from the payload

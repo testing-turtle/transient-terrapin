@@ -40,7 +40,7 @@ jobs:
       ## Note that the helper_run_id is used for telemetry correlation
       ## If you make changes to this format, you will need to update the telemetry code
       run: |
-        helper_run_id="helper-${{ github.run_id }}-${{ github.run_number }}-${{ github.run_attempt }}-${{github.job}}"
+        helper_run_id="helper-${{ github.run_id }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ job.check_run_id }}"
         gh workflow run helper.yml \
           --repo "${{ github.repository }}" \
           --ref "${{ github.head_ref }}" \
