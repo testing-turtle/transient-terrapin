@@ -28,6 +28,10 @@ jobs:
     - name: github JSON
       run: |
         echo '${{ toJson(github) }}'
+
+    - name: job JSON
+      run: |
+        echo '${{ toJson(job) }}'
     
     - name: checkout
       uses: actions/checkout@v3
