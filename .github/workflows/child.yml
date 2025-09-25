@@ -33,8 +33,10 @@ jobs:
       uses: actions/checkout@v3
 
     - name: call helper workflow
+      ## Note that the helper_run_id is used for telemetry correlation
+      ## If you make changes to this format, you will need to update the telemetry code
       run: |
-        helper_run_id="helper-${{ github.run_id }}-${{ github.run_number }}-${{ github.run_attempt }}"
+        helper_run_id="helper-${{ github.run_id }}-${{ github.run_number }}-${{ github.run_attempt }}-${{github.job}}"
         gh workflow run helper.yml \
           --repo "${{ github.repository }}" \
           --ref "${{ github.head_ref }}" \

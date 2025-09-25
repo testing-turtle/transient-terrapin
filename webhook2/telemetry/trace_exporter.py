@@ -34,6 +34,7 @@ class WorkflowTraceExporter(AzureMonitorTraceExporter):
         run_attempt = properties.get("run_attempt", None)
         parent_run_id = properties.get("parent_run_id", None)
         parent_run_attempt = properties.get("parent_run_attempt", None)
+        parent_job_name = properties.get("parent_job_name", None)
         if run_id and run_attempt:
             # we've got run or job related telemetry to process
 
@@ -48,19 +49,19 @@ class WorkflowTraceExporter(AzureMonitorTraceExporter):
             envelope.tags["ai.operation.id"] = operation_id
 
 
-            parent_id = None
             item_id = None
-            job_id = properties.get("job_id", None)
-            if job_id:
+            parent_id = None
+            job_name = properties.get("job_name", None)
+            if job_name:
                 # it's a job
-                item_id = f"{current_id}#{job_id}"
+                item_id = f"{current_id}#{job_name}"
                 parent_id = current_id
                 pass
             else:
                 if parent_run_id and parent_run_attempt:
                     # it's a child run
                     item_id = current_id
-                    parent_id = operation_id
+                    parent_id = f"{operation_id}#{parent_job_name}"
                 else:
                     # it's a top-level run
                     item_id = current_id
