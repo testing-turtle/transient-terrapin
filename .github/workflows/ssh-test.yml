@@ -1,4 +1,4 @@
-name: ssh
+name: ssh-test
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ jobs:
         env:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          sudo ./setup-ssh.sh
+          sudo ./setup-sshd.sh
 
       - name: IP Address
         run: curl https://ifconfig.me
