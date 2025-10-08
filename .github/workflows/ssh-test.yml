@@ -31,5 +31,8 @@ jobs:
 
           sudo service ssh start
 
+      - name: IP Address
+        run: curl https://ifconfig.me
+
       - name: Wait...
         run: sleep 300
