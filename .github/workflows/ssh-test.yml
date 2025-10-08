@@ -21,7 +21,7 @@ jobs:
       - name: temp
         run: |
           echo "${{ inputs.test }}"
-          echo "${{ inputs.test && "hello" || "goodbye" }}"
+          echo "${{ inputs.test && 'hello' || 'goodbye' }}"
           
 
       - name: Start sshd
