@@ -2,16 +2,25 @@ name: ssh-test
 
 on:
   workflow_dispatch:
+    inputs:
+      test:
+        description: 'A boolean input to test conditional logic'
+        required: true
+        type: boolean
 
 jobs:
   main:
-    runs-on: [self-hosted, ManagedDevOps.Pool=tt-pool2]
-    # runs-on: ubuntu-latest
+    # runs-on: [self-hosted, ManagedDevOps.Pool=tt-pool2]
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 
+
+      - name: temp
+        run: |
+          echo "${{ inputs.test ? "hello" : "goodbye" }}"
 
       - name: Start sshd
         env:
