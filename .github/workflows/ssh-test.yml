@@ -11,3 +11,25 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 
+
+      - name: Start sshd
+        env:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openssh-server
+          sudo mkdir -p /var/run/sshd
+
+          echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
+          echo "PasswordAuthentication no" | sudo tee -a /etc/ssh/sshd_config
+          echo "PubkeyAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
+          
+
+          mkdir -p ~/.ssh
+          chmod 0700 ~/.ssh
+          cat gh-ssh.key.pub >> ~/.ssh/authorized_keys
+
+          sudo service ssh start
+
+      - name: Wait...
+        run: sleep 300
