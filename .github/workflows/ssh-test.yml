@@ -20,7 +20,8 @@ jobs:
 
       - name: temp
         run: |
-          echo "${{ inputs.test ? "hello" : "goodbye" }}"
+          echo "${{ inputs.test }}"
+          
 
       - name: Start sshd
         env:
