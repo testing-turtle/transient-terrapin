@@ -5,7 +5,8 @@ on:
 
 jobs:
   main:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ManagedDevOps.Pool=tt-pool2]
+    # runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -16,20 +17,7 @@ jobs:
         env:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y openssh-server
-          sudo mkdir -p /var/run/sshd
-
-          echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
-          echo "PasswordAuthentication no" | sudo tee -a /etc/ssh/sshd_config
-          echo "PubkeyAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
-          
-
-          mkdir -p ~/.ssh
-          chmod 0700 ~/.ssh
-          cat gh-ssh.key.pub >> ~/.ssh/authorized_keys
-
-          sudo service ssh start
+          sudo ./setup-ssh.sh
 
       - name: IP Address
         run: curl https://ifconfig.me
