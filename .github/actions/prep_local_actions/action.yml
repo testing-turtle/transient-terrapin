@@ -1,9 +1,0 @@
-name: 'Prep Local Actions'
-description: 'Set up TypeScript actions for running with local references'
-runs:
-  using: "composite"
-  steps:
-    - name: Prepare
-      run: .github/actions/prep_local_actions/prep.sh
-      shell: bash
-
