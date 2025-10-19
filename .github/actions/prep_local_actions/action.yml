@@ -4,6 +4,6 @@ runs:
   using: "composite"
   steps:
     - name: Prepare
-      run: ./prep.sh
+      run: .github/actions/prep_local_actions/prep.sh
       shell: bash
 
