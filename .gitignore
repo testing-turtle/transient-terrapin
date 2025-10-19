@@ -6,6 +6,8 @@ __pycache__
 node_modules
 build
 
+.github/actions/**/node_modules
+.github/actions/**/dist
 
 .env
 DevTunnels

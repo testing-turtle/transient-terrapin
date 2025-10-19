@@ -30,6 +30,9 @@ jobs:
         with:
           fetch-depth: 0 # fetch all history for all branches and tags (may not be needed if using PR API for changed files)
 
+      - name: Prep Local Actions
+        uses: ./.github/actions/prep_local_actions
+
       - name: Show event info
         run: |
           echo '${{ toJson(github)}}'
@@ -146,6 +149,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Prep Local Actions
+        uses: ./.github/actions/prep_local_actions
+
       - name: Azure login with federated credentials
         uses: azure/login@v2
         with:
@@ -191,6 +197,9 @@ jobs:
       KEY_BUILD: ${{ fromJson(needs.calculate.outputs.jobs).build.artifact_key }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Prep Local Actions
+        uses: ./.github/actions/prep_local_actions
 
       - name: Azure login with federated credentials
         uses: azure/login@v2
@@ -248,6 +257,9 @@ jobs:
       KEY_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.jobs).test-common.artifact_key }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Prep Local Actions
+        uses: ./.github/actions/prep_local_actions
 
       - name: Test
         run: |
@@ -312,6 +324,9 @@ jobs:
       KEY_COMMON_TEST: ${{ fromJson(needs.calculate.outputs.jobs).test.artifact_key }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Prep Local Actions
+        uses: ./.github/actions/prep_local_actions
 
       - name: Azure login with federated credentials
         uses: azure/login@v2

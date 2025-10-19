@@ -1,0 +1,21 @@
+name: Publish Actions
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - '.github/actions/**/package.json'
+
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Publish Actions
+        run: ./scripts/publish_actions.sh
+
+
