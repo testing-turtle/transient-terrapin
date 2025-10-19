@@ -52,7 +52,7 @@ function set_repo_content_for_action() {
 
   # Commit changes
 
-  git add -A
+  git add -A > /dev/null
   git commit -m "Publish action $action_name version $version"
 }
 
