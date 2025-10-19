@@ -48,12 +48,12 @@ function set_repo_content_for_action() {
   cp -r "$script_dir/../.github/actions/$action_name/dist" .
 
   # Clear other files from the root to leave action.yml and dist only
-  find . -maxdepth 1 ! -name '.' ! -name 'action.yml' ! -name 'dist' ! -name '.git' -exec rm -rf {} +
+  find . -maxdepth 1 ! -name '.' ! -name 'action.yml' ! -name 'dist' ! -name '.git' -exec rm -rf {} > /dev/null +
 
   # Commit changes
 
-  git add -A
-  git commit -m "Publish action $action_name version $version"
+  git add -A > /dev/null
+  git commit -m "Publish action $action_name version $version" > /dev/null
 }
 
 function publish_action() {
