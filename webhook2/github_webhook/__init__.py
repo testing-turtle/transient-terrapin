@@ -1,1 +1,0 @@
-from .payload import verify_signature as verify_signature
