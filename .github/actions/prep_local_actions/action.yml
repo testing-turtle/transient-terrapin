@@ -4,6 +4,6 @@ runs:
   using: "composite"
   steps:
     - name: Prepare
-      run: prep.sh
+      run: ./prep.sh
       shell: bash
 
