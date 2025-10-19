@@ -1,6 +1,6 @@
 {
-  "name": "temp-action",
-  "version": "1.0.0",
+  "name": "check_artifacts",
+  "version": "1.0.1",
   "main": "index.js",
   "scripts": {
     "build": "tsc",
