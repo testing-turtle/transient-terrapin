@@ -45,6 +45,15 @@ jobs:
         run: |
           printenv | sort
 
+      - name: diff
+        run: |
+          git fetch origin main:main
+          git diff --name-only main...HEAD
+          
+          echo -e "\n\n-----------------------------\n\n"
+          
+          git diff main...HEAD
+
       - name: Get ref for cache
         id: get_ref
         uses: actions/github-script@v7
